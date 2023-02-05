@@ -1,0 +1,18 @@
+Create database name "mydb"
+createdb mydb
+
+List databases 
+psql --list
+
+Delete databased named "mydb"
+dropdb mydb
+
+See all indexes on table "fields"
+SELECT                                                                   
+    indexname,                                                                                 
+    indexdef
+FROM
+    pg_indexes
+WHERE
+    tablename = 'fields';
+

@@ -1,0 +1,7 @@
+Install protobuf compiler protoc
+
+https://grpc.io/docs/protoc-installation/
+brew install protobuf
+
+Project is using rustc 1.66.0 (69f9c33d7 2022-12-12)
+

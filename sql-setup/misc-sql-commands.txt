@@ -1,0 +1,135 @@
+CREATE TABLE fields (
+    document_id      text,
+    value            field_value
+);
+
+
+INSERT INTO fields VALUES ('doc1', ROW(true, NULL, NULL, NULL));
+INSERT INTO fields VALUES ('doc2', ROW(NULL, true, NULL, NULL)),
+ ('doc3', ROW(NULL, false, NULL, NULL)),
+ ('doc4', ROW(NULL, NULL, -9.0, NULL)),
+ ('doc5', ROW(NULL, NULL, NULL, 'empty text'));
+
+SELECT * FROM fields WHERE value <= cast((NULL, false, NULL, NULL) as field_value);
+
+EXPLAIN SELECT * FROM fields WHERE value <= cast((NULL, false, NULL, NULL) as field_value);
+
+
+
+select field_value_lt(
+  cast((NULL, NULL, NULL, NULL, 10, 1, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, NULL, 3, 2, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_lte(
+  cast((NULL, NULL, NULL, NULL, 10, 1, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, NULL, 3, 2, NULL, NULL, NULL) as field_value)
+);
+select field_value_lte(
+  cast((NULL, true, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, true, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_cmp(
+  cast((true, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdf') as field_value)
+);
+
+select field_value_cmp(
+  cast((null, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdf') as field_value),
+  cast((true, NULL, NULL, NULL, NULL, NULL, NULL, NULL, null) as field_value)
+);
+
+select field_value_cmp(
+  cast((NULL, NULL, 5, NULL, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, 5.0, NULL, NULL, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_cmp(
+  cast((NULL, NULL, NULL, -6.0, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_cmp(
+  cast((NULL, NULL, NULL, -6.0, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, 5.0, NULL, NULL, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_cmp(
+  cast((NULL, NULL, 2, NULL, NULL, NULL, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)
+);
+
+
+select field_value_cmp(
+  cast((NULL, NULL, NULL, NULL, 10, 1, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, NULL, 3, 1, NULL, NULL, NULL) as field_value)
+);
+
+select field_value_cmp(
+  cast((NULL, NULL, NULL, NULL, 10, 1, NULL, NULL, NULL) as field_value),
+  cast((NULL, NULL, NULL, NULL, 3, 2, NULL, NULL, NULL) as field_value)
+);
+
+
+
+insert into field_test values
+(cast((true, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, true, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, false, NULL, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, -999, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, -3, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, 5, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, 543, NULL, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, -23.63, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, -3.432, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, -3.0, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, -0.0, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, 1.0, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, 5.0, NULL, NULL, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, 432, 0, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, 0, 12, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, 1234, 12, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, 1234, 12, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, 234, 12, NULL, NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, '', NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, 'hello world', NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, 'Hellow World', NULL, NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, bytea '\x048AB21FDA', NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, bytea '\xFF48AB21', NULL) as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'mycollection/doc1') as field_value)),
+(cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'mycollection/doc2') as field_value))
+;
+
+
+
+
+
+CREATE TYPE subtype AS (
+  null_value        boolean,
+  boolean_value     text
+);
+
+create type mytype as (
+  a_value   field_value[],
+  b_value   subtype
+);
+
+select * from
+cast((ARRAY[
+cast((NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'mycollection/doc1') as field_value),
+cast((NULL, NULL, -3, NULL, NULL, NULL, NULL, NULL, NULL) as field_value),
+cast((NULL, NULL, NULL, NULL, 1234, 12, NULL, NULL, NULL) as field_value),
+],cast((true, 'asfdds') as subtype)) as mytype)
+where a_value @> cast((true, 'asfdds') as subtype)
+;
+
+
+
+create table myints (
+    val1      integer[],
+    val2      integer[]
+);
+
+create index val1_val2_idx on myints using GIN (val1, val2);

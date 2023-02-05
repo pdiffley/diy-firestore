@@ -1,0 +1,10 @@
+
+
+CREATE TABLE simple_query_lookup (
+  collection_parent_path      text,
+  collection_id               text,
+  document_id                 text,
+  field_name                  text,
+  field_value                 field_value
+  primary key (collection_parent_path, collection_id, document_id, field_name)
+);
