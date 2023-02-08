@@ -13,3 +13,7 @@ Specify composite query that you want to make in advance rather than just the fi
 
 Configure the ttl for individual types of subscription queues 
   eg. if you have a messaging app with a messages collection, you could indicate server side that you want subscriptions to your messages collection to not expire for (example 10 days) after the client disconnects. Then you can have you app subscribe directly to a collection of messages (where every message is a document), and not have to worry about the app having to reload every single message ever sent just because a user was offline for 30 minutes.
+
+Provide protobuf-like ability to rename collections and field names
+
+Add a "large blob" type to FieldValue. Behind the scenes manage storing the blob in file storage, and storing the file id in the database. From the user's perspective allows you to write arbitrarily sized blobs directly to the database, while not encounter the performance issues that would normally incur. 

@@ -16,3 +16,5 @@ FROM
 WHERE
     tablename = 'fields';
 
+Restart postgres after a hard reboot
+  brew services restart postgresql

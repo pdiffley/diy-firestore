@@ -109,6 +109,8 @@ Because documents can have values with different types for the same field key, w
 
 I will be writing client side code samples in Typescript and backend code samples in Rust. It is worth noting that because numbers in Typescript are [represented by 64 bit floats](https://262.ecma-international.org/6.0/#sec-terms-and-definitions-number-value), the language does not natively support full 64 bit integers, but because all of our backend code will be in in Rust, we could still support 64 bit integers in other client side languages. 
 
+<Todo: Note that in a production app we might want to integrate the rust code into database functions through a c interface to avoid making multiple round trips between our server and database>
+
 ### Queries
 
 Following Firestore's terminolgy <add link>, we will classify queries as either ***simple*** or ***compound*** and will allow queries on ***collections*** as well as ***collection groups***. <specify composite field groups term>
