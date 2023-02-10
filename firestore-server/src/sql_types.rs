@@ -3,7 +3,8 @@ use postgres_types::{ToSql, FromSql};
 
 #[derive(Debug, Clone, ToSql, FromSql)]
 pub struct SqlFieldValue {
-  pub null_value:        Option<bool>,
+  pub min:               Option<Unit>,
+  pub null_value:        Option<Unit>,
   pub boolean_value:     Option<bool>,
   pub integer_value:     Option<i64>,
   pub double_value:      Option<f64>,
@@ -12,10 +13,45 @@ pub struct SqlFieldValue {
   pub string_value:      Option<String>,
   pub bytes_value:       Option<Vec<u8>>,
   pub reference_value:   Option<String>,
+  pub max:               Option<Unit>,
 }
 
-#[derive(Debug, ToSql, FromSql)]
-enum Unit {
+impl SqlFieldValue {
+  pub(crate) fn max() -> SqlFieldValue {
+    SqlFieldValue {
+      min:               None,
+      null_value:        None,
+      boolean_value:     None,
+      integer_value:     None,
+      double_value:      None,
+      timestamp_nanos:   None,
+      timestamp_seconds: None,
+      string_value:      None,
+      bytes_value:       None,
+      reference_value:   None,
+      max:               Some(Unit::NotNull),
+    }
+  }
+
+  pub(crate) fn min() -> SqlFieldValue {
+    SqlFieldValue {
+      min:               Some(Unit::NotNull),
+      null_value:        None,
+      boolean_value:     None,
+      integer_value:     None,
+      double_value:      None,
+      timestamp_nanos:   None,
+      timestamp_seconds: None,
+      string_value:      None,
+      bytes_value:       None,
+      reference_value:   None,
+      max:               None,
+    }
+  }
+}
+
+#[derive(Debug, Clone, ToSql, FromSql)]
+pub enum Unit {
   NotNull,
 }
 

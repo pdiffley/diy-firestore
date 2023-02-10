@@ -42,7 +42,7 @@ pub enum CompositeFieldGroupType {
 
 fn composite_table_name_from_query_fields(collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter]) -> String{
   let mut query_fields: Vec<String> = vec![parameters.iter().filter(|x| x.is_primary).map(|x| x.field_name.clone()).next().unwrap()];
-  let mut secondary_query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
+  let mut secondary_query_fields: Vec<String> = HashSet::<String>::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
   secondary_query_fields.sort();
   query_fields.extend(secondary_query_fields.into_iter());
 
@@ -65,19 +65,17 @@ fn composite_table_field_path(sorted_field_names: &[String]) -> String {
   sorted_field_names.join("/")
 }
 
-pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter]) -> Vec<Document> {
+pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
   if let User(user_id) = user_id {
     assert!(operation_is_allowed(user_id, &Operation::List,
                                  &collection_parent_path,
                                  collection_id, &None));
   }
 
-  let table_name: String = format!("\"{}\"", composite_table_name_from_query_fields(collection_parent_path, collection_id, parameters));
-
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
-      .from(&table_name);
+      .from(&composite_group.lookup_table_name);
     for (i, parameter) in parameters.iter().enumerate() {
       let constraint = format!("{} {} ${}", parameter.field_name, parameter.operator, i + 1);
       query = query.where_clause(&constraint);
@@ -101,22 +99,11 @@ pub fn add_document_to_composite_query_tables(
   collection_id: &str,
   document_id: &str,
   document: &Document,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 )
 {
-  let composite_table_collection_id = composite_table_collection_path(&Some(collection_parent_path.to_string()), collection_id);
-  let composite_table_collection_group_id = composite_table_collection_path(&None, collection_id);
-
-  if let Some(affected_collection_tables) = composite_groups.get(&composite_table_collection_id) {
-    for composite_field_group in affected_collection_tables {
-      add_document_to_composite_query_table(transaction, collection_parent_path, collection_id, document_id, document, composite_field_group)
-    }
-  }
-
-  if let Some(affected_collection_group_tables) = composite_groups.get(&composite_table_collection_group_id) {
-    for composite_field_group in affected_collection_group_tables {
-      add_document_to_composite_query_table(transaction, collection_parent_path, collection_id, document_id, document, composite_field_group)
-    }
+  for composite_field_group in composite_groups {
+    add_document_to_composite_query_table(transaction, collection_parent_path, collection_id, document_id, document, composite_field_group);
   }
 }
 
@@ -153,22 +140,11 @@ pub fn delete_document_from_composite_query_tables(
   collection_parent_path: &str,
   collection_id: &str,
   document_id: &str,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 )
 {
-  let composite_table_collection_id = composite_table_collection_path(&Some(collection_parent_path.to_string()), collection_id);
-  let composite_table_collection_group_id = composite_table_collection_path(&None, collection_id);
-
-  if let Some(affected_collection_tables) = composite_groups.get(&composite_table_collection_id) {
-    for composite_field_group in affected_collection_tables {
-      delete_document_from_composite_query_table(transaction, collection_parent_path, collection_id, document_id, composite_field_group)
-    }
-  }
-
-  if let Some(affected_collection_group_tables) = composite_groups.get(&composite_table_collection_group_id) {
-    for composite_field_group in affected_collection_group_tables {
-      delete_document_from_composite_query_table(transaction, collection_parent_path, collection_id, document_id, composite_field_group)
-    }
+  for composite_field_group in composite_groups {
+    delete_document_from_composite_query_table(transaction, collection_parent_path, collection_id, document_id, composite_field_group)
   }
 }
 
@@ -189,28 +165,13 @@ fn delete_document_from_composite_query_table(
 
 pub fn get_affected_composite_query_subscriptions(
   transaction: &mut Transaction,
-  collection_parent_path: &str,
-  collection_id: &str,
   document: &Document,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 ) -> Vec<String> {
-
-  let composite_table_collection_id = composite_table_collection_path(&Some(collection_parent_path.to_string()), collection_id);
-  let composite_table_collection_group_id = composite_table_collection_path(&None, collection_id);
-
   let mut affected_subscriptions: Vec<String> = vec![];
-  if let Some(affected_collection_tables) = composite_groups.get(&composite_table_collection_id) {
-    for composite_group in affected_collection_tables {
-      affected_subscriptions.extend(get_affected_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
-    }
+  for composite_group in composite_groups {
+    affected_subscriptions.extend(get_affected_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
   }
-
-  if let Some(affected_collection_group_tables) = composite_groups.get(&composite_table_collection_group_id) {
-    for composite_group in affected_collection_group_tables {
-      affected_subscriptions.extend(get_affected_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
-    }
-  }
-
   affected_subscriptions
 }
 
@@ -219,8 +180,6 @@ fn get_affected_subscriptions_for_composite_group(
   document: &Document,
   composite_group: &CompositeFieldGroup,
 ) -> Vec<String> {
-
-
   let primary_field_name = &composite_group.primary_field_name;
   let included_query_string = {
     let mut included_query = sql_query_builder::Select::new()
@@ -243,7 +202,7 @@ fn get_affected_subscriptions_for_composite_group(
 
   let excluded_query_string =
     format!("select distinct subscription_id from \"{}\" where excluded_{} != $1",
-            composite_group.exclusion_subscription_table_name, primary_field_name);
+            composite_group.excluded_subscription_table_name, primary_field_name);
 
   let query_string = format!("{} EXCEPT {}",
                              included_query_string, excluded_query_string);
@@ -264,7 +223,7 @@ fn get_field_group_values(
   composite_field_group: &CompositeFieldGroup,
 ) -> Vec<SqlFieldValue> {
   let mut document_values = vec![];
-  for field_name in &composite_field_group.sorted_field_names {
+  for field_name in std::iter::once(&composite_field_group.primary_field_name).chain(composite_field_group.sorted_secondary_field_names.iter()) {
     if let Some(value) = document.fields.get(field_name) {
       document_values.push(field_value_proto_to_sql(value));
     } else {
@@ -278,61 +237,61 @@ fn get_field_group_values(
 pub fn subscribe_to_composite_query(
   transaction: &mut Transaction,
   client_id: &str,
-  collection_parent_path: &Option<String>,
-  collection_id: &str,
-  parameters: &[QueryParameter],
-  composite_groups: &HashMap<String, CompositeFieldGroup>,
+  sorted_parameters: &[QueryParameter],
+  composite_group: &CompositeFieldGroup,
 ) {
   let subscription_id: String = Uuid::new_v4().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
 
+  let mut primary_less_than_param = SqlFieldValue::min();
+  let mut primary_greater_than_parameter = SqlFieldValue::max();
+  let mut primary_excluded_parameters = vec![];
+  let mut secondary_parameters = vec![];
 
-  let table_id: String = format!("\"{}\"", composite_table_name_from_query_fields(collection_parent_path, collection_id, parameters));
-  let composite_group = composite_groups[&table_id].clone();
-
-  let mut query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| x.is_primary).map(|x| x.field_name.clone())).collect();
-  let mut secondary_query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
-  secondary_query_fields.sort();
-  query_fields.extend(secondary_query_fields.into_iter());
-
-  primary less than, primary greater than, primary != [], secondary equals
-
-  for parameter in parameters {
+  for parameter in sorted_parameters {
     if parameter.is_primary {
-
+      match parameter.operator.as_str() {
+        "<=" => primary_less_than_param = parameter.parameter.clone(),
+        ">=" => primary_greater_than_parameter = parameter.parameter.clone(),
+        "<" => {
+          primary_less_than_param = parameter.parameter.clone();
+          primary_excluded_parameters.push(parameter.parameter.clone());
+        },
+        ">" => {
+          primary_greater_than_parameter = parameter.parameter.clone();
+          primary_excluded_parameters.push(parameter.parameter.clone());
+        },
+        "=" => {
+          primary_less_than_param = parameter.parameter.clone();
+          primary_greater_than_parameter = parameter.parameter.clone();
+        },
+        "!=" => primary_excluded_parameters.push(parameter.parameter.clone()),
+        _ => panic!("Invalid query argument provided")
+      }
     } else {
+      secondary_parameters.push(parameter.parameter.clone());
     }
   }
 
-
-  pub struct CompositeFieldGroup {
-    group_type: CompositeFieldGroupType,
-    lookup_table_name: String,
-    inequality_subscription_table_name: String,
-    exclusion_subscription_table_name: String,
-    equality_subscription_table_name: String,
-    sorted_field_names: Vec<String>,
+  let mut row_string = "($1, $2, $3".to_owned();
+  for i in 0 .. secondary_parameters.len() {
+    row_string.push_str(&format!(", ${}", i + 4));
+  }
+  row_string.push(')');
+  let included_query_string = format!("insert into {} values {}", composite_group.included_subscription_table_name, row_string);
+  let mut included_args: Vec<&(dyn ToSql + Sync)> = vec![&subscription_id, &primary_less_than_param, &primary_greater_than_parameter];
+  for secondary_parameter in secondary_parameters.iter() {
+    included_args.push(secondary_parameter);
   }
 
+  transaction.execute(&included_query_string,
+                      &included_args).unwrap();
+  let excluded_query_string = format!("insert into {} values ($1, $2)", composite_group.excluded_subscription_table_name);
+  for excluded_value in primary_excluded_parameters {
+    transaction.execute(&excluded_query_string, &[&subscription_id, &excluded_value]).unwrap();
+  }
 
-  // let query_fields: HashSet<String> = HashSet::from_iter(parameters.iter().map(|x| x.field_name.clone()));
-  // let mut query_fields: Vec<String> = query_fields.into_iter().collect();
-  // query_fields.sort();
-  //
-  // let table_name: String = format!("\"{}\"", composite_table_name(collection_parent_path, collection_id, &query_fields));
-  //
-  //
-  // let collection_parent_path_string: String;
-  // if let Some(collection_parent_path) = collection_parent_path {
-  //   collection_parent_path_string = collection_parent_path.clone();
-  // } else {
-  //   collection_parent_path_string = "NULL".to_owned();
-  // }
-  //
-  // transaction.execute("insert into simple_query_subscriptions values ($1, $2, $3, $4, $5, $6)",
-  //                     &[&collection_parent_path_string, &collection_id, &field_name, &field_operator, &field_value, &subscription_id]).unwrap();
-  //
-  // // Todo: trigger first subscription update?
+  // Todo: trigger first subscription update?
 }
 

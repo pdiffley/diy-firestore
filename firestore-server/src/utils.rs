@@ -14,7 +14,7 @@ use crate::protos::document_protos::Document;
 use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::UserId;
-use crate::sql_types::{SqlFieldValue};
+use crate::sql_types::{SqlFieldValue, Unit};
 
 
 pub fn get_document_from_row_id(transaction: &mut Transaction, user_id: &UserId, document_id_row: Row) -> Document {
@@ -29,6 +29,7 @@ pub fn get_document_from_row_id(transaction: &mut Transaction, user_id: &UserId,
 
 pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
   let mut sql_field_value = SqlFieldValue {
+    min:               None,
     null_value:        None,
     boolean_value:     None,
     integer_value:     None,
@@ -38,10 +39,11 @@ pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
     string_value:      None,
     bytes_value:       None,
     reference_value:   None,
+    max:               None
   };
 
   match field_value.value.clone().unwrap() {
-    Value::NullValue(x) => sql_field_value.null_value = Some(x),
+    Value::NullValue(x) => sql_field_value.null_value = Some(Unit::NotNull),
     Value::BooleanValue(x) => sql_field_value.boolean_value = Some(x),
     Value::IntegerValue(x) => sql_field_value.integer_value = Some(x),
     Value::DoubleValue(x) => sql_field_value.double_value = Some(x),
@@ -56,7 +58,8 @@ pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
 
 pub fn null_sql_field_value() -> SqlFieldValue {
   SqlFieldValue {
-    null_value:        Some(true),
+    min:               None,
+    null_value:        Some(Unit::NotNull),
     boolean_value:     None,
     integer_value:     None,
     double_value:      None,
@@ -65,6 +68,7 @@ pub fn null_sql_field_value() -> SqlFieldValue {
     string_value:      None,
     bytes_value:       None,
     reference_value:   None,
+    max:               None
   }
 }
 

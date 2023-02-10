@@ -25,7 +25,7 @@ fn create_document(
   collection_id: &str,
   document_id: &str,
   document: &Document,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 ) {
   let encoded_document = {
     let mut encoded_document: Vec<u8> = vec![];
@@ -44,7 +44,7 @@ fn create_document(
     let mut affected_subscriptions = vec![];
     affected_subscriptions.extend(get_affected_basic_subscription_ids (transaction, collection_parent_path, collection_id, document_id).into_iter());
     affected_subscriptions.extend(get_affected_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
-    affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, collection_parent_path, collection_id, document, composite_groups).into_iter());
+    affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, document, composite_groups).into_iter());
     affected_subscriptions
   };
 
@@ -57,7 +57,7 @@ pub fn delete_document(
   collection_parent_path: &str,
   collection_id: &str,
   document_id: &str,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 ) {
   if let User(user_id) = user_id {
     assert!(operation_is_allowed(user_id, &Operation::Delete,
@@ -78,7 +78,7 @@ pub fn delete_document(
       let mut affected_subscriptions = vec![];
       affected_subscriptions.extend(get_affected_basic_subscription_ids (transaction, collection_parent_path, collection_id, document_id).into_iter());
       affected_subscriptions.extend(get_affected_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
-      affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, collection_parent_path, collection_id, &document, composite_groups).into_iter());
+      affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, &document, composite_groups).into_iter());
       affected_subscriptions
     };
 
@@ -90,7 +90,7 @@ pub fn write_document(
   transaction: &mut Transaction,
   user_id: &UserId,
   document: &Document,
-  composite_groups: &HashMap<String, Vec<CompositeFieldGroup>>,
+  composite_groups: &[CompositeFieldGroup],
 )
 {
   let collection_parent_path = document.id.clone().unwrap().collection_parent_path;

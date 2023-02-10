@@ -102,9 +102,9 @@ Btree index approach, table set up:
 
 "collection_composite_subscription_table_excluded/users/age/name/city/zipcode"
 
-| excluded_age | subscription_id |
-| ------------ | --------------- |
-| FieldValue   | Text            |
+| subscription_id | excluded_age |
+| --------------- | ------------ |
+| Text            | FieldValue   |
 
 
 For write
