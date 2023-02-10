@@ -93,25 +93,18 @@ Subscriptions
 
 Btree index approach, table set up:
 
-"collection_composite_subscription_table_inequalities/users/age/name/city/zipcode"
+"collection_composite_subscription_table_included/users/age/name/city/zipcode"
 
-| subscription_id | min_age    | max_age    |
-| --------------- | ---------- | ---------- |
-| Text            | FieldValue | FieldValue |
+| subscription_id | min_age    | max_age    | name       | city       | zipcode    |
+| --------------- | ---------- | ---------- | ---------- | ---------- | ---------- |
+| Text            | FieldValue | FieldValue | FieldValue | FieldValue | FieldValue |
 
 
-"collection_composite_subscription_table_exclusions/users/age/name/city/zipcode"
+"collection_composite_subscription_table_excluded/users/age/name/city/zipcode"
 
 | excluded_age | subscription_id |
 | ------------ | --------------- |
 | FieldValue   | Text            |
-
-
-"collection_composite_subscription_table_equalities/users/age/name/city/zipcode"
-
-| subscription_id | age        | name       | city       | zipcode    |
-| --------------- | ---------- | ---------- | ---------- | ---------- |
-| Text            | FieldValue | FieldValue | FieldValue | FieldValue |
 
 
 For write

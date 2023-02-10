@@ -23,16 +23,16 @@ pub struct QueryParameter {
   field_name: String,
   operator: String,
   parameter: SqlFieldValue,
+  is_primary: bool,
 }
 
 pub struct CompositeFieldGroup {
   group_type: CompositeFieldGroupType,
   lookup_table_name: String,
-  inequality_subscription_table_name: String,
-  exclusion_subscription_table_name: String,
-  equality_subscription_table_name: String,
+  included_subscription_table_name: String,
+  excluded_subscription_table_name: String,
   primary_field_name: String,
-  secondary_sorted_field_names: Vec<String>,
+  sorted_secondary_field_names: Vec<String>,
 }
 
 pub enum CompositeFieldGroupType {
@@ -41,9 +41,10 @@ pub enum CompositeFieldGroupType {
 }
 
 fn composite_table_name_from_query_fields(collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter]) -> String{
-  let query_fields: HashSet<String> = HashSet::from_iter(parameters.iter().map(|x| x.field_name.clone()));
-  let mut query_fields: Vec<String> = query_fields.into_iter().collect();
-  query_fields.sort();
+  let mut query_fields: Vec<String> = vec![parameters.iter().filter(|x| x.is_primary).map(|x| x.field_name.clone()).next().unwrap()];
+  let mut secondary_query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
+  secondary_query_fields.sort();
+  query_fields.extend(secondary_query_fields.into_iter());
 
   composite_table_name(collection_parent_path, collection_id, &query_fields)
 }
@@ -218,30 +219,34 @@ fn get_affected_subscriptions_for_composite_group(
   document: &Document,
   composite_group: &CompositeFieldGroup,
 ) -> Vec<String> {
+
+
   let primary_field_name = &composite_group.primary_field_name;
+  let included_query_string = {
+    let mut included_query = sql_query_builder::Select::new()
+      .select("subscription_id")
+      .from(&format!("\"{}\"", composite_group.included_subscription_table_name));
 
-  let inequality_query_string =
-    format!("select subscription_id from \"{}\" where min_{1} <= $1, max_{1} >= $1",
-            composite_group.inequality_subscription_table_name, primary_field_name);
+    if document.fields.contains_key(primary_field_name){
+      included_query = included_query
+        .where_clause(&format!("min_{0} <= $1", primary_field_name))
+        .where_clause(&format!("max_{0} >= $1", primary_field_name));
+    }
 
-  let exclusion_query_string =
+    for (i, field_name) in composite_group.sorted_secondary_field_names.iter().enumerate() {
+      if document.fields.contains_key(field_name) {
+        included_query = included_query.where_clause(&format!("{0} = ${1}", field_name, i + 1));
+      }
+    }
+    included_query.as_string()
+  };
+
+  let excluded_query_string =
     format!("select distinct subscription_id from \"{}\" where excluded_{} != $1",
             composite_group.exclusion_subscription_table_name, primary_field_name);
 
-  let equality_query_string = {
-    let mut equality_query = sql_query_builder::Select::new()
-      .select("subscription_id")
-      .from(&format!("\"{}\"", composite_group.equality_subscription_table_name));
-    
-    for (i, field_name) in composite_group.sorted_field_names.iter().enumerate() {
-      //TODO: Check if document has field
-      equality_query = equality_query.where_clause(&format!("({0} = ${1} or {0} is null)", field_name, i));
-    }
-    equality_query.as_string()
-  };
-
-  let query_string = format!("({} INTERSECT {}) EXCEPT {}",
-                             inequality_query_string, equality_query_string, exclusion_query_string);
+  let query_string = format!("{} EXCEPT {}",
+                             included_query_string, excluded_query_string);
 
   let document_values = get_field_group_values(document, composite_group);
   let args: Vec<&(dyn ToSql + Sync)> = document_values.iter().map(|x| x as &(dyn ToSql + Sync)).collect();
@@ -284,7 +289,21 @@ pub fn subscribe_to_composite_query(
 
 
   let table_id: String = format!("\"{}\"", composite_table_name_from_query_fields(collection_parent_path, collection_id, parameters));
-  let composite_group = composite_groups[table_id];
+  let composite_group = composite_groups[&table_id].clone();
+
+  let mut query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| x.is_primary).map(|x| x.field_name.clone())).collect();
+  let mut secondary_query_fields: Vec<String> = HashSet::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
+  secondary_query_fields.sort();
+  query_fields.extend(secondary_query_fields.into_iter());
+
+  primary less than, primary greater than, primary != [], secondary equals
+
+  for parameter in parameters {
+    if parameter.is_primary {
+
+    } else {
+    }
+  }
 
 
   pub struct CompositeFieldGroup {
