@@ -18,6 +18,7 @@ use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
 use crate::simple_query::{add_document_to_simple_query_table, delete_document_from_simple_query_table, get_affected_simple_query_subscriptions};
 use crate::sql_types::{SqlFieldValue};
+use crate::update_queue::{add_update_to_queues};
 
 fn create_document(
   transaction: &mut Transaction,
@@ -48,7 +49,14 @@ fn create_document(
     affected_subscriptions
   };
 
-    // Todo: Send update to affected subscriptions
+  add_update_to_queues(
+    transaction,
+    &affected_subscriptions,
+    collection_parent_path,
+    collection_id,
+    document_id,
+    &Some(encoded_document));
+  // Todo: Ping client-server connection to trigger update (this would actually happen after the transaction)
 }
 
 pub fn delete_document(
@@ -82,7 +90,14 @@ pub fn delete_document(
       affected_subscriptions
     };
 
-    // Todo: Send update to affected subscriptions
+    add_update_to_queues(
+      transaction,
+      &affected_subscriptions,
+      collection_parent_path,
+      collection_id,
+      document_id,
+      &None);
+    // Todo: Ping client-server connection to trigger update (this would actually happen after the transaction)
   }
 }
 

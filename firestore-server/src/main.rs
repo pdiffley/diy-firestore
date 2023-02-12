@@ -6,6 +6,7 @@ mod simple_query;
 mod composite_query;
 mod utils;
 mod security_rules;
+mod update_queue;
 
 use std::collections::{HashMap, HashSet};
 use prost::Message;
