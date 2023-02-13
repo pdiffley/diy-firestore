@@ -17,9 +17,9 @@ After the queue is updated we will also send a (pubsub, sqs, rabbitmq) message t
 
 
 
-| client_id | subscription_id | collection_parent_path | collection_id | document_id | document_data |
-| --------- | --------------- | ---------------------- | ------------- | ----------- | ------------- |
-| Text      | Text            | Text                   | Text          | Text        | Bytes         |
+| client_id | subscription_id | collection_parent_path | collection_id | document_id | document_data | update_id |
+| --------- | --------------- | ---------------------- | ------------- | ----------- | ------------- | --------- |
+| Text      | Text            | Text                   | Text          | Text        | Bytes         | Text      |
 
 on subscription update insert row
 

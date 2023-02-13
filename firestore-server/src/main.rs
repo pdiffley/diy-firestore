@@ -7,6 +7,7 @@ mod composite_query;
 mod utils;
 mod security_rules;
 mod update_queue;
+mod client_connection_endpoint;
 
 use std::collections::{HashMap, HashSet};
 use prost::Message;
