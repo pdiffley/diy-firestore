@@ -5,6 +5,7 @@ package protos.documents;
 message Document {
   DocumentId id = 1;
   map<string, FieldValue> fields = 2;
+  string update_id = 3;
 }
 
 message DocumentId {

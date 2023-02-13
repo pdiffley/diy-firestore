@@ -19,7 +19,6 @@ pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
   // Todo: close request with message that client is up to date
 }
 
-
 pub fn record_client_ping(sql_client: &mut Client, user_client_id: &str) {
   let now = SystemTime::now();
   sql_client.execute(

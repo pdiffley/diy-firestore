@@ -43,7 +43,7 @@ pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
   };
 
   match field_value.value.clone().unwrap() {
-    Value::NullValue(x) => sql_field_value.null_value = Some(Unit::NotNull),
+    Value::NullValue(_) => sql_field_value.null_value = Some(Unit::NotNull),
     Value::BooleanValue(x) => sql_field_value.boolean_value = Some(x),
     Value::IntegerValue(x) => sql_field_value.integer_value = Some(x),
     Value::DoubleValue(x) => sql_field_value.double_value = Some(x),

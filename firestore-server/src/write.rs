@@ -8,6 +8,7 @@ use std::fmt;
 use bytes::{Bytes, BytesMut};
 
 use itertools::Itertools;
+use uuid::Uuid;
 use crate::basic_read::{get_affected_basic_subscription_ids, get_document};
 use crate::composite_query::{add_document_to_composite_query_tables, CompositeFieldGroup, delete_document_from_composite_query_tables, get_affected_composite_query_subscriptions};
 
@@ -25,6 +26,7 @@ fn create_document(
   collection_parent_path: &str,
   collection_id: &str,
   document_id: &str,
+  update_id: &str,
   document: &Document,
   composite_groups: &[CompositeFieldGroup],
 ) {
@@ -34,8 +36,8 @@ fn create_document(
     encoded_document
   };
   transaction.execute(
-    "insert into documents values ($1, $2, $3, $4)",
-    &[&collection_parent_path, &collection_id, &document_id, &encoded_document]).unwrap();
+    "insert into documents values ($1, $2, $3, $4, $5)",
+    &[&collection_parent_path, &collection_id, &document_id, &encoded_document, &update_id]).unwrap();
 
   //Todo: Update composite subscription tables
   add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
@@ -55,6 +57,7 @@ fn create_document(
     collection_parent_path,
     collection_id,
     document_id,
+    update_id,
     &Some(encoded_document));
   // Todo: Ping client-server connection to trigger update (this would actually happen after the transaction)
 }
@@ -90,12 +93,14 @@ pub fn delete_document(
       affected_subscriptions
     };
 
+    let update_id: String = Uuid::new_v4().to_string();
     add_update_to_queues(
       transaction,
       &affected_subscriptions,
       collection_parent_path,
       collection_id,
       document_id,
+      &update_id,
       &None);
     // Todo: Ping client-server connection to trigger update (this would actually happen after the transaction)
   }
@@ -104,13 +109,15 @@ pub fn delete_document(
 pub fn write_document(
   transaction: &mut Transaction,
   user_id: &UserId,
-  document: &Document,
+  mut document: Document,
   composite_groups: &[CompositeFieldGroup],
 )
 {
   let collection_parent_path = document.id.clone().unwrap().collection_parent_path;
   let collection_id = document.id.clone().unwrap().collection_id;
   let document_id = document.id.clone().unwrap().document_id;
+  let update_id = Uuid::new_v4().to_string();
+  document.update_id = update_id.clone();
 
   let document_exists = transaction.query(
     "SELECT 1 FROM documents WHERE collection_parent_path=$1, collection_id=$2, document_id=$3",
@@ -131,6 +138,6 @@ pub fn write_document(
   }
 
   delete_document(transaction, &UserId::Admin, &collection_parent_path, &collection_id, &document_id, composite_groups);
-  create_document(transaction, &collection_parent_path, &collection_id, &document_id, document, composite_groups);
+  create_document(transaction, &collection_parent_path, &collection_id, &document_id, &update_id, &document, composite_groups);
 }
 

@@ -8,6 +8,7 @@ mod utils;
 mod security_rules;
 mod update_queue;
 mod client_connection_endpoint;
+mod transaction;
 
 use std::collections::{HashMap, HashSet};
 use prost::Message;

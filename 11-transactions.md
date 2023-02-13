@@ -1,14 +1,17 @@
-Set up with long polling or streaming request for trivial horizontal scalability
+give documents an update_id (in document table)
 
-basic flow is
 
-  client connects with a long poll request
-  subscribes to server side message queue
-  checks if it's update queue for any missed messages
-  if there are messages
-    tell client to get the updates from the queue
-  else 
-    wait for an update signal then tell client to get updates from the queue
 
-Messages won't be removed from the update queue until the client confirms the update has been processed. 
-The client side update will be designed to be idempotent, so duplicate update won't cause a problem.
+only need one extra endpoint for optimistic transaction:
+
+Commit Transaction
+takes list of documents that should have no change (based on update_id) and the list of documents to write
+fails if any of the update ids have changed
+
+Client is responsible for tracking previously read documents. 
+
+
+
+Show example of how this works client side.
+
+Point out requirement that reads happen before writes. 
