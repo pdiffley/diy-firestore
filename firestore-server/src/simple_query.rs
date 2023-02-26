@@ -36,10 +36,17 @@ pub fn simple_query(
   }
 
   let sql_field_value = field_value_proto_to_sql(field_value);
-  transaction.query(
-    "SELECT (collection_parent_path, collection_id, document_id) from simple_query_lookup where collection_parent_path=$1, collection_id=$2, $3 $4 $5",
-    &[&collection_parent_path, &collection_id, &field_name, &field_operator, &sql_field_value])
-    .unwrap().into_iter()
+  let query_result;
+  if let Some(collection_parent_path) = collection_parent_path {
+    query_result = transaction.query(
+      "SELECT (collection_parent_path, collection_id, document_id) from simple_query_lookup where collection_parent_path = $1, collection_id = $2, field_name = $3, field_value $4 $5",
+      &[&collection_parent_path, &collection_id, &field_name, &field_operator, &sql_field_value])
+  } else {
+    query_result = transaction.query(
+      "SELECT (collection_parent_path, collection_id, document_id) from simple_query_lookup where collection_id = $1, field_name = $2, field_value $3 $4",
+      &[&collection_id, &field_name, &field_operator, &sql_field_value])
+  }
+  query_result.unwrap().into_iter()
     .map(|row| get_document_from_row_id(transaction, user_id, row))
     .collect()
 }
@@ -53,13 +60,13 @@ pub fn get_affected_simple_query_subscriptions(transaction: &mut Transaction, co
     let sql_field_value = field_value_proto_to_sql(field_value);
     for operator_pair in &operator_pairs {
       let collection_subscriptions = transaction.query(
-        "select subscription_id from simple_query_subscriptions where collection_parent_path = $1, collection_id = $2, field = $3, operator = $4, parameter $5 $6",
+        "select subscription_id from simple_query_subscriptions where collection_parent_path = $1, collection_id = $2, field_name = $3, field_operator = $4, field_value $5 $6",
         &[&collection_parent_path, &collection_id, &field_name, &operator_pair.0, &operator_pair.1, &sql_field_value]
       ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
       affected_subscriptions.extend(collection_subscriptions);
 
       let collection_group_subscriptions = transaction.query(
-        "select subscription_id from simple_query_subscriptions where collection_parent_path = NULL, collection_id = $1, field = $2, operator = $3, parameter $4 $5",
+        "select subscription_id from simple_query_subscriptions where collection_parent_path = NULL, collection_id = $1, field_name = $2, operator = $3, field_value $4 $5",
         &[&collection_id, &field_name, &operator_pair.0, &operator_pair.1, &sql_field_value]
       ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
       affected_subscriptions.extend(collection_group_subscriptions)
@@ -93,7 +100,7 @@ pub fn delete_document_from_simple_query_table(
 )
 {
   transaction.execute(
-    "delete from documents where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    "delete from simple_query_lookup where collection_parent_path=$1, collection_id=$2, document_id=$3",
     &[&collection_parent_path, &collection_id, &document_id]).unwrap();
 }
 

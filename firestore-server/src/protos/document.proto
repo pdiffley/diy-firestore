@@ -16,7 +16,7 @@ message DocumentId {
 
 message FieldValue {
   oneof value {
-    bool null_value = 1;
+    Unit null_value = 1;
     bool boolean_value = 2;
     int64 integer_value = 3;
     double double_value = 4;
@@ -27,9 +27,13 @@ message FieldValue {
   }
 }
 
+// a unary element to indicate that the FieldValue's null_value field is not null. 
+enum Unit {
+  NotNull = 0;
+}
+
 message Timestamp {
   int64 nanos = 1;
   int64 seconds = 2;
 }
-
 

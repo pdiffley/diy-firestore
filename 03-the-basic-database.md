@@ -11,57 +11,69 @@ Now that we have chosen our backing datastore, let’s look at how we will use i
 
 ## Storing our data Operations
 
-We need a way to store schemaless documents in our SQL database. To do this we will define our first table, "Documents" with the schema:
-
-**Documents**
-
-| collection_parent_path: Text | collection_id: Text | document_id: Text | document_data: bytea |
-| :--------------------------: | :-----------------: | :---------------: | :------------------: |
-
-We can create this table with the command
+We need a way to store schemaless documents in our SQL database. To do this we will define our first table, "Documents":
 
 ```postgresql
-create table documents (
-	collection_parent_path text,
-	collection_id text,
-  document_id text,
-  document_data bytea,
-  primary key (collection_parent_path, collection_id, document_id)
+CREATE TABLE documents (
+  collection_parent_path      text,
+  collection_id               text,
+  document_id                 text,
+  document_data               bytea,
 );
 ```
 
-As dicussed in <defining our requirements>, the columns collection_parent_path, collection_id, and doc_id will together be the unique identifier for a document. The doc_data column will hold a binary representation of the document itself. Note: if we were implementing this system, we could do a much better job normalizing the primary key data in this table, but I am going to leave it as for the sake of keeping this article concise.
+As dicussed in <defining our requirements>, the columns collection_parent_path, collection_id, and document_id will together be the unique identifier for a document. The document_data column will hold a binary representation of the document itself.
 
-To store our documents in the document_data column, we need a way to get a binary representation of our document. Protobuf's is a convenient way to do this. We will define our document as a protobuf map:
+We'll also add an index so that we can retrieve documents from the table based on their identifiers
+
+```postgresql
+create index collection_id_collection_parent_path_index 
+on documents(collection_id, collection_parent_path, document_id, update_id);
+```
+
+
+
+To store our documents in the document_data column, we need a way to get a binary representation of our document. Protobuf's is a convenient way to do this. We will define our document proto to have a document id and a map of fields.
 
 ```protobuf
 syntax = "proto3";
 package protos.documents;
 
 message Document {
-  map<string: FieldValue> fields = 0;
+  DocumentId id = 1;
+  map<string, FieldValue> fields = 2;
+}
+
+message DocumentId {
+    string collection_parent_path = 1;
+    string collection_id = 2;
+    string document_id = 3;
 }
 ```
 
-Protobuf messages have a schema though. To allow for multiple datatypes to be stored in our document, we will define a type FieldValue that can hold all of the possible value our documents support. Protobuf's "oneof" feature conveniently allow us to indicate that any given FieldValue will only contain one of these types.
+Protobuf messages have a schema though. To allow for multiple datatypes to be stored in our document, we define a type FieldValue that can hold all of the possible value our documents support. Protobuf's "oneof" feature conveniently allows us to indicate that any given FieldValue will only contain one of these types.
 
 ```protobuf
 message FieldValue {
   oneof value {
-    boolean null_value = 0;
-    boolean boolean_value = 1;
-    int64 integer_value = 2;
-    double double_value = 3;
-    Timestamp timestamp_value = 4;
-    string string_value = 5;
-    bytes bytes_value = 6;
-    string reference_value = 7; 
+    Unit null_value = 1;
+    bool boolean_value = 2;
+    int64 integer_value = 3;
+    double double_value = 4;
+    Timestamp timestamp_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+    string reference_value = 8;
   }
 }
 
+enum Unit {
+  Exists = 0;
+}
+
 message Timestamp {
-  int64 nanos = 0;
-  int64 seconds = 1;
+  int64 nanos = 1;
+  int64 seconds = 2;
 }
 ```
 
@@ -79,32 +91,38 @@ Now that we know how we are storing our documents, let’s take a look at how we
 - Get all documents in a collection and/or collection_group
 - Write a document to the database
 
-Our table already has a primary key (collection_parent_path, collection_id, document_id), so given the full path to a document, we can easily read it from the database
+Our table already has an index on (collection_parent_path, collection_id, document_id), so given the full path to a document, we can easily read it from the database
 
 ```Rust
-fn get_document(
-  sql_client: <insert client type>, 
+pub fn get_document(
+  transaction: &mut Transaction, 
+  user_id: &UserId, 
   collection_parent_path: &str, 
   collection_id: &str, 
-  document_id: &str
-) -> return type
+  document_id: &str) 
+  -> Option<Document> 
 {
-  let query = "SELECT document_data from documents where 
-  	collection_parent_path=$1, collection_id=$2, document_id=$3"
-	sql_client.execute(
-    query, 
-    &[collection_parent_path, collection_id, document_id]).unwrap();  
-  // todo extract data from from and return
+  let rows = transaction.query(
+    "SELECT document_data 
+    from documents 
+    where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    &[&collection_parent_path, &collection_id, &document_id]
+  ).unwrap();
+
+  if rows.len() == 0 {
+    return None
+  }
+  let encoded_document: Vec<u8> = rows[0].get(0);
+  let document: Document = Document::decode(&encoded_document[..]).unwrap();
+  Some(document)
 }
 ```
 
-To retrieve efficiently retrive all of the documents from a collection and a collection group we will create two separate indexes
+To retrieve efficiently retrive all of the documents from a collection and a collection group we will create the index
 
 ```postgresql
-create index collection_parent_path_collection_id_index 
-on documents(collection_parent_path, collection_id);
-
-create index collection_id_index on documents(collection_id);
+create index collection_id_collection_parent_path_index 
+on documents(collection_id, collection_parent_path);
 ```
 
 Then we can write two functions to retrieve those documents
@@ -190,7 +208,7 @@ Since we just introduced the ability to read individual documents and read all o
 Our "basic_subscriptions" table map a full document identifier to a subscription_id listening to that document. We will go into more detail on this later, but for now we will just know that whenever a user makes a subscription, we will assign that subscription an id, and record the subscription information in this table. If they subscribe to a document, all four fields will have values. If they subscribe to a collection, document_id will be null, and if the subscribe to a collection group, both document_id and collection_parent_path will be null.
 
 So that we can query these values efficiently, we'll create the index
-```
+```postgresql
 create index basic_subscriptions_idx (collection_parent_path, collection_id, document_id)
 ```
 

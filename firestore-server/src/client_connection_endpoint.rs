@@ -15,6 +15,7 @@ pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
     // Todo: close request with message that client should retrieve updates
   }
 
+  // would be replaced with an async version of this
   sleep(Duration::new(LONG_POLL_TIME_SECONDS, 0));
   // Todo: close request with message that client is up to date
 }
@@ -28,9 +29,9 @@ pub fn record_client_ping(sql_client: &mut Client, user_client_id: &str) {
 
 pub fn client_is_out_of_date(sql_client: &mut Client, user_client_id: &str) -> bool {
   return sql_client.query(
-    "SELECT 1 FROM client_subscriptions JOIN update_queues \
-     ON client_subscriptions.subscription_id = update_queues.subscription_id \
-     WHERE client_id = $1 \
+    "SELECT 1 FROM client_subscriptions C JOIN update_queues U
+     ON C.subscription_id = U.subscription_id 
+     WHERE C.client_id = $1 
      LIMIT 1",
     &[&user_client_id])
     .unwrap().len() == 0;
@@ -47,10 +48,10 @@ pub struct UpdateValue {
 
 pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateValue> {
   sql_client.query(
-    "SELECT (subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id) \
-     FROM client_subscriptions JOIN update_queues \
-     ON client_subscriptions.subscription_id = update_queues.subscription_id \
-     WHERE client_id = $1 \
+    "SELECT (subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id) 
+     FROM client_subscriptions C JOIN update_queues U 
+     ON C.subscription_id = U.subscription_id 
+     WHERE C.client_id = $1 
      LIMIT 1",
     &[&user_client_id])
     .unwrap().into_iter()
@@ -65,11 +66,12 @@ pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateV
     .collect()
 }
 
+//Todo: needs verification and index
 pub fn confirm_updates(sql_client: &mut Client, user_client_id: &str, update_ids: &[String]) {
   sql_client.execute(
-    "delete FROM client_subscriptions JOIN update_queues \
-     ON client_subscriptions.subscription_id = update_queues.subscription_id \
-     where client_id = $1, update_id IN $2", &[&user_client_id, &update_ids]).unwrap();
+    "delete FROM update_queues U USING client_subscriptions C 
+     where U.subscription_id = C.subscription_id 
+     C.client_id = $1, U.update_id IN $2", &[&user_client_id, &update_ids]).unwrap();
 }
 
 

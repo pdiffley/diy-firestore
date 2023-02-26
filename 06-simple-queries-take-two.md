@@ -138,18 +138,17 @@ With that in mind we will create the table simple_query_subscriptions with the f
 Here we are storing the field name, the operation, and query parameter from the where clause of our query in addition to collection and subscription ids. If a user created a listener for the query above, we would add the row (collection, collection, 'user', '==', fieldvalue('braden'), <subscription_id>). We'll create this table and a corresponding index with:)
 
 ```
-CREATE TABLE simple_query_lookup (
+CREATE TABLE simple_query_subscriptions (
   collection_parent_path      text,
   collection_id               text,
   field                       text,
   operator                    text,
   field_value                 field_value,
   subscription_id							subscription_id
-  primary key subscription_id
 );
 
 create index simple_collection_group_query_idx on 
-simple_query_lookup(collection_parent_path, collection_id, field, operator, field_value);
+simple_query_subscriptions(collection_parent_path, collection_id, field, operator, field_value);
 ```
 
 Now when we write a document to our database we can check each of the document's fields against our supported operators and identify any simple queries that are affected by the update

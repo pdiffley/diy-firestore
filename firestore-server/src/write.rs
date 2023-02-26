@@ -39,7 +39,6 @@ fn create_document(
     "insert into documents values ($1, $2, $3, $4, $5)",
     &[&collection_parent_path, &collection_id, &document_id, &encoded_document, &update_id]).unwrap();
 
-  //Todo: Update composite subscription tables
   add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
   add_document_to_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, document, composite_groups);
 

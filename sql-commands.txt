@@ -1,11 +1,11 @@
 Create database name "mydb"
-createdb mydb
+createdb diy_firestore
 
 List databases 
 psql --list
 
 Delete databased named "mydb"
-dropdb mydb
+dropdb diy_firestore
 
 See all indexes on table "fields"
 SELECT                                                                   

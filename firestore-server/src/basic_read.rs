@@ -17,8 +17,14 @@ use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
 use crate::sql_types::{SqlFieldValue};
 
-
-pub fn get_document(transaction: &mut Transaction, user_id: &UserId, collection_parent_path: &str, collection_id: &str, document_id: &str) -> Option<Document> {
+pub fn get_document(
+  transaction: &mut Transaction, 
+  user_id: &UserId, 
+  collection_parent_path: &str, 
+  collection_id: &str, 
+  document_id: &str) 
+  -> Option<Document> 
+{
   // security check
   if let User(user_id) = user_id {
     assert!(operation_is_allowed(user_id, &Operation::Get,
@@ -27,7 +33,9 @@ pub fn get_document(transaction: &mut Transaction, user_id: &UserId, collection_
   }
 
   let rows = transaction.query(
-    "SELECT document_data from documents where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    "SELECT document_data 
+    from documents 
+    where collection_parent_path=$1, collection_id=$2, document_id=$3",
     &[&collection_parent_path, &collection_id, &document_id]
   ).unwrap();
 

@@ -46,7 +46,7 @@ Having this field group specified in advance allows us to make a lookup table sp
 
 "collection_composite_lookup_table/users/age/name/city/zipcode"
 
-| collection_parent_path | collection_id | document_id | age        | name       | city       | zipcode    |
+| collection_parent_path | collection_id | document_id | age        | city       | name       | zipcode    |
 | ---------------------- | ------------- | ----------- | ---------- | ---------- | ---------- | ---------- |
 | Text                   | Text          | Text        | FieldValue | FieldValue | FieldValue | FieldValue |
 
@@ -126,3 +126,13 @@ Requires implementing gin index operator class for FieldValue. Will cover in nex
 which includes array and map data types
 
 <tbd: write code for both multi table b-tree approach and single table gin approach or just gin approach?>
+
+
+
+// Todo: use uuid for composite group id 
+
+make table with
+
+collection_parent_path, collection_id, primary_field_name, secondary_field_names[], composite_group_id
+
+// Todo: update requirements chapter to ignore ASC/DESC right now

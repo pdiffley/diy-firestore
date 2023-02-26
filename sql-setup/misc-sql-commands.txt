@@ -1,3 +1,12 @@
+createdb diy_firestore
+psql -U pd -d diy_firestore -f $HOME/diy-firestore/sql-setup/create_composite_type.sql
+psql -U pd -d diy_firestore -f $HOME/diy-firestore/sql-setup/create_tables.sql
+psql -U pd -d diy_firestore -f $HOME/diy-firestore/sql-setup/create_sample_composite_group_tables.sql
+
+Delete databased named "mydb"
+dropdb diy_firestore
+
+
 CREATE TABLE fields (
     document_id      text,
     value            field_value

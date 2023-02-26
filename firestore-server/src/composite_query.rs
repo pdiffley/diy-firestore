@@ -28,41 +28,26 @@ pub struct QueryParameter {
 
 pub struct CompositeFieldGroup {
   group_type: CompositeFieldGroupType,
-  lookup_table_name: String,
-  included_subscription_table_name: String,
-  excluded_subscription_table_name: String,
+  group_id: String,
   primary_field_name: String,
   sorted_secondary_field_names: Vec<String>,
+}
+
+impl CompositeFieldGroup {
+  fn lookup_table_name(&self) -> String {
+    format!("composite_lookup_table_{}", self.group_id)
+  }
+  fn included_subscription_table_name(&self) -> String {
+    format!("composite_included_subscription_table_{}", self.group_id)
+  }
+  fn excluded_subscription_table_name(&self) -> String {
+    format!("composite_excluded_subscription_table_{}", self.group_id)
+  }
 }
 
 pub enum CompositeFieldGroupType {
   Collection,
   CollectionGroup
-}
-
-fn composite_table_name_from_query_fields(collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter]) -> String{
-  let mut query_fields: Vec<String> = vec![parameters.iter().filter(|x| x.is_primary).map(|x| x.field_name.clone()).next().unwrap()];
-  let mut secondary_query_fields: Vec<String> = HashSet::<String>::from_iter(parameters.iter().filter(|x| !x.is_primary).map(|x| x.field_name.clone())).into_iter().collect();
-  secondary_query_fields.sort();
-  query_fields.extend(secondary_query_fields.into_iter());
-
-  composite_table_name(collection_parent_path, collection_id, &query_fields)
-}
-
-fn composite_table_name(collection_parent_path: &Option<String>, collection_id: &str, sorted_field_names: &[String]) -> String {
-  format!("{}/{}", composite_table_collection_path(collection_parent_path, collection_id), composite_table_field_path(sorted_field_names))
-}
-
-fn composite_table_collection_path(collection_parent_path: &Option<String>, collection_id: &str) -> String {
-  return if let Some(collection_parent_path) = collection_parent_path {
-    format!("collection_composite_lookup_table/{}/{}", collection_parent_path, collection_id)
-  } else {
-    format!("collection_group_composite_lookup_table/{}", collection_id)
-  }
-}
-
-fn composite_table_field_path(sorted_field_names: &[String]) -> String {
-  sorted_field_names.join("/")
 }
 
 pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
@@ -75,7 +60,7 @@ pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, collecti
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
-      .from(&composite_group.lookup_table_name);
+      .from(&composite_group.lookup_table_name());
     for (i, parameter) in parameters.iter().enumerate() {
       let constraint = format!("{} {} ${}", parameter.field_name, parameter.operator, i + 1);
       query = query.where_clause(&constraint);
@@ -115,22 +100,22 @@ fn add_document_to_composite_query_table(
   document: &Document,
   composite_field_group: &CompositeFieldGroup
 ) {
-  let document_values = get_field_group_values(document, composite_field_group);
+  let (primary_value, secondary_values) = get_field_group_values(document, composite_field_group);
 
-  let table_name = format!("\"{}\"", composite_field_group.lookup_table_name);
+  let table_name = format!("\"{}\"", composite_field_group.lookup_table_name());
   let query_string = {
     let mut query = sql_query_builder::Insert::new()
       .insert_into(&table_name)
-      .values("($1, $2, $3");
-    for i in 0 .. document_values.len() {
-      query = query.values(&format!("{}", i + 4));
+      .values("($1, $2, $3, $4");
+    for i in 0 .. secondary_values.len() {
+      query = query.values(&format!("{}", i + 5));
     }
     query = query.raw_after(sql_query_builder::InsertClause::Values, ")");
     query.as_string()
   };
 
-  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&collection_parent_path, &collection_id, &document_id];
-  args.extend(document_values.iter().map(|x| x as &(dyn ToSql + Sync)));
+  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&collection_parent_path, &collection_id, &document_id, &primary_value];
+  args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
 
   transaction.execute(&query_string, &args).unwrap();
 }
@@ -155,13 +140,11 @@ fn delete_document_from_composite_query_table(
   document_id: &str,
   composite_field_group: &CompositeFieldGroup
 ) {
-  let mut query_string: String =
+  let query_string: String =
     format!("delete from \"{}\" where collection_parent_path=$1, collection_id=$2, document_id=$3",
-            composite_field_group.lookup_table_name);
+            composite_field_group.lookup_table_name());
   transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
 }
-
-
 
 pub fn get_affected_composite_query_subscriptions(
   transaction: &mut Transaction,
@@ -184,7 +167,7 @@ fn get_affected_subscriptions_for_composite_group(
   let included_query_string = {
     let mut included_query = sql_query_builder::Select::new()
       .select("subscription_id")
-      .from(&format!("\"{}\"", composite_group.included_subscription_table_name));
+      .from(&format!("\"{}\"", composite_group.included_subscription_table_name()));
 
     if document.fields.contains_key(primary_field_name){
       included_query = included_query
@@ -202,13 +185,14 @@ fn get_affected_subscriptions_for_composite_group(
 
   let excluded_query_string =
     format!("select distinct subscription_id from \"{}\" where excluded_{} != $1",
-            composite_group.excluded_subscription_table_name, primary_field_name);
+            composite_group.excluded_subscription_table_name(), primary_field_name);
 
   let query_string = format!("{} EXCEPT {}",
                              included_query_string, excluded_query_string);
 
-  let document_values = get_field_group_values(document, composite_group);
-  let args: Vec<&(dyn ToSql + Sync)> = document_values.iter().map(|x| x as &(dyn ToSql + Sync)).collect();
+  let (primary_value, secondary_values) = get_field_group_values(document, composite_group);
+  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&primary_value];
+  args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
 
   let affected_subscription_ids = transaction.query(&query_string, &args).unwrap()
     .into_iter()
@@ -221,19 +205,19 @@ fn get_affected_subscriptions_for_composite_group(
 fn get_field_group_values(
   document: &Document,
   composite_field_group: &CompositeFieldGroup,
-) -> Vec<SqlFieldValue> {
-  let mut document_values = vec![];
-  for field_name in std::iter::once(&composite_field_group.primary_field_name).chain(composite_field_group.sorted_secondary_field_names.iter()) {
+) -> (SqlFieldValue, Vec<SqlFieldValue>) {
+  let primary_value = field_value_proto_to_sql(document.fields.get(&composite_field_group.primary_field_name).unwrap());
+  let mut secondary_values = vec![];
+  for field_name in &composite_field_group.sorted_secondary_field_names {
     if let Some(value) = document.fields.get(field_name) {
-      document_values.push(field_value_proto_to_sql(value));
+      secondary_values.push(field_value_proto_to_sql(value));
     } else {
-      document_values.push(null_sql_field_value());
+      secondary_values.push(null_sql_field_value());
     }
   }
-  document_values
+  (primary_value, secondary_values)
 }
 
-//Todo: Note constraint that all fields in a group need to be included in a query (simplify table selection)
 pub fn subscribe_to_composite_query(
   transaction: &mut Transaction,
   client_id: &str,
@@ -279,7 +263,7 @@ pub fn subscribe_to_composite_query(
     row_string.push_str(&format!(", ${}", i + 4));
   }
   row_string.push(')');
-  let included_query_string = format!("insert into {} values {}", composite_group.included_subscription_table_name, row_string);
+  let included_query_string = format!("insert into {} values {}", composite_group.included_subscription_table_name(), row_string);
   let mut included_args: Vec<&(dyn ToSql + Sync)> = vec![&subscription_id, &primary_less_than_param, &primary_greater_than_parameter];
   for secondary_parameter in secondary_parameters.iter() {
     included_args.push(secondary_parameter);
@@ -287,7 +271,7 @@ pub fn subscribe_to_composite_query(
 
   transaction.execute(&included_query_string,
                       &included_args).unwrap();
-  let excluded_query_string = format!("insert into {} values ($1, $2)", composite_group.excluded_subscription_table_name);
+  let excluded_query_string = format!("insert into {} values ($1, $2)", composite_group.excluded_subscription_table_name());
   for excluded_value in primary_excluded_parameters {
     transaction.execute(&excluded_query_string, &[&subscription_id, &excluded_value]).unwrap();
   }
