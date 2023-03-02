@@ -12,7 +12,11 @@ pub fn add_update_to_queues(
 {
   for subscription_id in affected_subscriptions {
     transaction.execute(
-      "insert into update_queues values ($1, $2, $3, $4, $5, $6, $7)",
+      "delete from update_queues where subscription_id = $1 and collection_parent_path = $2 and collection_id = $3 and document_id = $4",
+      &[&subscription_id, &collection_parent_path, &collection_id, &document_id]
+    ).unwrap();
+    transaction.execute(
+      "insert into update_queues values ($1, $2, $3, $4, $5, $6)",
       &[&subscription_id, &collection_parent_path, &collection_id, &document_id, &document_data, &update_id]).unwrap();
   }
 }

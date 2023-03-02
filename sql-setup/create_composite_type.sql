@@ -1,5 +1,8 @@
+CREATE TYPE "Unit" AS ENUM ('NotNull');
+
 CREATE TYPE field_value AS (
-  null_value        boolean,
+  min               "Unit",
+  null_value        "Unit",
   boolean_value     boolean,
   integer_value     int8,
   double_value      float8,
@@ -7,7 +10,8 @@ CREATE TYPE field_value AS (
   timestamp_seconds int8,
   string_value      text,
   bytes_value       bytea,
-  reference_value   text
+  reference_value   text,
+  max               "Unit"
 );
 
 -- BASIC COMPARISON FUNCTIONS
@@ -118,7 +122,9 @@ $$LANGUAGE plpgsql;
 -- MATCHING FIELD COMPARISON
 create or replace function matching_field_value_cmp(a field_value, b field_value) returns int2 as $$
 begin
-  if a.null_value is not null then
+  if a.min is not null then
+    return 0;
+  elsif a.null_value is not null then
     return 0;
   elsif a.boolean_value is not null then
     return boolean_cmp(a.boolean_value, b.boolean_value);
@@ -130,8 +136,10 @@ begin
     return string_cmp(a.string_value, b.string_value);
   elsif a.bytes_value is not null then
     return bytes_cmp(a.bytes_value, b.bytes_value);
-  else
+  elsif a.reference_value is not null then
     return string_cmp(a.reference_value, b.reference_value);
+  else
+    return 0;
   end if;
 end;
 $$LANGUAGE plpgsql;
@@ -139,20 +147,24 @@ $$LANGUAGE plpgsql;
 -- FIELD VALUE TYPE IDENTIFICATION
 create or replace function get_field_value_type(a field_value) returns int2 as $$
 begin
-  if a.null_value is not null then
+  if a.min is not null then
     return 0;
-  elsif a.boolean_value is not null then
+  elsif a.null_value is not null then
     return 1;
-  elsif a.integer_value is not null or a.double_value is not null then
+  elsif a.boolean_value is not null then
     return 2;
-  elsif a.timestamp_nanos is not null and a.timestamp_seconds is not null then
+  elsif a.integer_value is not null or a.double_value is not null then
     return 3;
-  elsif a.string_value is not null then
+  elsif a.timestamp_nanos is not null and a.timestamp_seconds is not null then
     return 4;
-  elsif a.bytes_value is not null then
+  elsif a.string_value is not null then
     return 5;
-  else
+  elsif a.bytes_value is not null then
     return 6;
+  elsif a.reference_value is not null then
+    return 7;
+  else
+    return 8;
   end if;
   return -1;
 end;

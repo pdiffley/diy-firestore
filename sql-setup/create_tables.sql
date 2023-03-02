@@ -1,4 +1,8 @@
 
+CREATE TABLE test (
+  unit_column  "Unit"
+);
+
 CREATE TABLE documents (
   collection_parent_path      text,
   collection_id               text,

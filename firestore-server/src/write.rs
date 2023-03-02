@@ -18,7 +18,7 @@ use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
 use crate::simple_query::{add_document_to_simple_query_table, delete_document_from_simple_query_table, get_affected_simple_query_subscriptions};
-use crate::sql_types::{SqlFieldValue};
+use crate::sql_types::{field_value};
 use crate::update_queue::{add_update_to_queues};
 
 fn create_document(
@@ -77,7 +77,7 @@ pub fn delete_document(
 
   if let Some(document) = get_document(transaction, user_id, collection_parent_path, collection_id, document_id) {
     transaction.execute(
-      "delete from documents where collection_parent_path=$1, collection_id=$2, document_id=$3",
+      "delete from documents where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
       &[&collection_parent_path, &collection_id, &document_id])
       .unwrap();
 
@@ -92,7 +92,7 @@ pub fn delete_document(
       affected_subscriptions
     };
 
-    let update_id: String = Uuid::new_v4().to_string();
+    let update_id: String = Uuid::new_v4().as_simple().to_string();
     add_update_to_queues(
       transaction,
       &affected_subscriptions,
@@ -112,14 +112,14 @@ pub fn write_document(
   composite_groups: &[CompositeFieldGroup],
 )
 {
-  let collection_parent_path = document.id.clone().unwrap().collection_parent_path;
-  let collection_id = document.id.clone().unwrap().collection_id;
-  let document_id = document.id.clone().unwrap().document_id;
-  let update_id = Uuid::new_v4().to_string();
-  document.update_id = update_id.clone();
+  let collection_parent_path: String = document.id.clone().unwrap().collection_parent_path.clone();
+  let collection_id: String = document.id.clone().unwrap().collection_id.clone();
+  let document_id: String = document.id.clone().unwrap().document_id.clone();
+  let update_id: String = Uuid::new_v4().as_simple().to_string();
+  document.update_id = Some(update_id.clone());
 
   let document_exists = transaction.query(
-    "SELECT 1 FROM documents WHERE collection_parent_path=$1, collection_id=$2, document_id=$3",
+    "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3",
     &[&collection_parent_path, &collection_id, &document_id]
   ).unwrap().len() > 0;
 

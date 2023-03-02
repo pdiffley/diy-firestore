@@ -42,9 +42,15 @@ fn document_has_changed(transaction: &mut Transaction, document: &Document) -> b
   let document_id = document.id.clone().unwrap().document_id;
   let update_id = document.update_id.clone();
 
-  // Todo: you can just check the update id assuming UUID is working correctly, but we can also avoid creating another index this way
-  return transaction.query(
-    "SELECT 1 FROM documents WHERE collection_parent_path=$1, collection_id=$2, document_id=$3, update_id=$4",
-    &[&collection_parent_path, &collection_id, &document_id, &update_id]
-  ).unwrap().len() == 0;
+  return if let Some(update_id) = update_id {
+    transaction.query(
+      "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3 and update_id=$4",
+      &[&collection_parent_path, &collection_id, &document_id, &update_id]
+    ).unwrap().len() == 0
+  } else {
+    transaction.query(
+      "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+      &[&collection_parent_path, &collection_id, &document_id]
+    ).unwrap().len() == 0
+  }
 }

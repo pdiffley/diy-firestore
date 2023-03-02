@@ -2,7 +2,7 @@ use postgres::Row;
 use postgres_types::{ToSql, FromSql};
 
 #[derive(Debug, Clone, ToSql, FromSql)]
-pub struct SqlFieldValue {
+pub struct field_value {
   pub min:               Option<Unit>,
   pub null_value:        Option<Unit>,
   pub boolean_value:     Option<bool>,
@@ -16,37 +16,33 @@ pub struct SqlFieldValue {
   pub max:               Option<Unit>,
 }
 
-impl SqlFieldValue {
-  pub(crate) fn max() -> SqlFieldValue {
-    SqlFieldValue {
-      min:               None,
-      null_value:        None,
-      boolean_value:     None,
-      integer_value:     None,
-      double_value:      None,
-      timestamp_nanos:   None,
+impl field_value {
+  pub(crate) fn default() -> field_value {
+    field_value {
+      min: None,
+      null_value: None,
+      boolean_value: None,
+      integer_value: None,
+      double_value: None,
+      timestamp_nanos: None,
       timestamp_seconds: None,
-      string_value:      None,
-      bytes_value:       None,
-      reference_value:   None,
-      max:               Some(Unit::NotNull),
+      string_value: None,
+      bytes_value: None,
+      reference_value: None,
+      max: None,
     }
   }
 
-  pub(crate) fn min() -> SqlFieldValue {
-    SqlFieldValue {
-      min:               Some(Unit::NotNull),
-      null_value:        None,
-      boolean_value:     None,
-      integer_value:     None,
-      double_value:      None,
-      timestamp_nanos:   None,
-      timestamp_seconds: None,
-      string_value:      None,
-      bytes_value:       None,
-      reference_value:   None,
-      max:               None,
-    }
+  pub(crate) fn max() -> field_value {
+    let mut val = field_value::default();
+    val.max = Some(Unit::NotNull);
+    val
+  }
+
+  pub(crate) fn min() -> field_value {
+    let mut val = field_value::default();
+    val.min = Some(Unit::NotNull);
+    val
   }
 }
 

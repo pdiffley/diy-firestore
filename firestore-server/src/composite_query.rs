@@ -15,22 +15,25 @@ use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
-use crate::sql_types::{SqlFieldValue};
+use crate::sql_types::{field_value};
 use crate::utils::{field_value_proto_to_sql, get_document_from_row_id, null_sql_field_value};
 
-
+#[derive(Debug, Clone)]
 pub struct QueryParameter {
-  field_name: String,
-  operator: String,
-  parameter: SqlFieldValue,
-  is_primary: bool,
+  pub field_name: String,
+  pub operator: String,
+  pub parameter: field_value,
+  pub is_primary: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct CompositeFieldGroup {
-  group_type: CompositeFieldGroupType,
-  group_id: String,
-  primary_field_name: String,
-  sorted_secondary_field_names: Vec<String>,
+  pub collection_parent_path: Option<String>,
+  pub collection_id: String,
+  pub group_type: CompositeFieldGroupType,
+  pub group_id: String,
+  pub primary_field_name: String,
+  pub sorted_secondary_field_names: Vec<String>,
 }
 
 impl CompositeFieldGroup {
@@ -38,13 +41,14 @@ impl CompositeFieldGroup {
     format!("composite_lookup_table_{}", self.group_id)
   }
   fn included_subscription_table_name(&self) -> String {
-    format!("composite_included_subscription_table_{}", self.group_id)
+    format!("composite_included_table_{}", self.group_id)
   }
   fn excluded_subscription_table_name(&self) -> String {
-    format!("composite_excluded_subscription_table_{}", self.group_id)
+    format!("composite_excluded_table_{}", self.group_id)
   }
 }
 
+#[derive(Debug, Clone)]
 pub enum CompositeFieldGroupType {
   Collection,
   CollectionGroup
@@ -108,7 +112,7 @@ fn add_document_to_composite_query_table(
       .insert_into(&table_name)
       .values("($1, $2, $3, $4");
     for i in 0 .. secondary_values.len() {
-      query = query.values(&format!("{}", i + 5));
+      query = query.values(&format!("${}", i + 5));
     }
     query = query.raw_after(sql_query_builder::InsertClause::Values, ")");
     query.as_string()
@@ -141,7 +145,7 @@ fn delete_document_from_composite_query_table(
   composite_field_group: &CompositeFieldGroup
 ) {
   let query_string: String =
-    format!("delete from \"{}\" where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    format!("delete from \"{}\" where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
             composite_field_group.lookup_table_name());
   transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
 }
@@ -167,7 +171,7 @@ fn get_affected_subscriptions_for_composite_group(
   let included_query_string = {
     let mut included_query = sql_query_builder::Select::new()
       .select("subscription_id")
-      .from(&format!("\"{}\"", composite_group.included_subscription_table_name()));
+      .from(&format!("{}", composite_group.included_subscription_table_name()));
 
     if document.fields.contains_key(primary_field_name){
       included_query = included_query
@@ -177,22 +181,33 @@ fn get_affected_subscriptions_for_composite_group(
 
     for (i, field_name) in composite_group.sorted_secondary_field_names.iter().enumerate() {
       if document.fields.contains_key(field_name) {
-        included_query = included_query.where_clause(&format!("{0} = ${1}", field_name, i + 1));
+        included_query = included_query.where_clause(&format!("{0} = ${1}", field_name, i + 2));
       }
     }
     included_query.as_string()
   };
 
   let excluded_query_string =
-    format!("select distinct subscription_id from \"{}\" where excluded_{} != $1",
+    format!("select distinct subscription_id from {} where excluded_{} = $1",
             composite_group.excluded_subscription_table_name(), primary_field_name);
 
-  let query_string = format!("{} EXCEPT {}",
+
+  let query_string = format!("({}) EXCEPT ({})",
                              included_query_string, excluded_query_string);
 
   let (primary_value, secondary_values) = get_field_group_values(document, composite_group);
   let mut args: Vec<&(dyn ToSql + Sync)> = vec![&primary_value];
   args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
+
+
+
+  let included_subscription_ids: Vec<String> = transaction.query(&excluded_query_string, &[&primary_value]).unwrap()
+    .into_iter()
+    .map(|x| x.get::<usize, String>(0))
+    .collect();
+
+  println!("{:?}", included_subscription_ids);
+
 
   let affected_subscription_ids = transaction.query(&query_string, &args).unwrap()
     .into_iter()
@@ -205,7 +220,7 @@ fn get_affected_subscriptions_for_composite_group(
 fn get_field_group_values(
   document: &Document,
   composite_field_group: &CompositeFieldGroup,
-) -> (SqlFieldValue, Vec<SqlFieldValue>) {
+) -> (field_value, Vec<field_value>) {
   let primary_value = field_value_proto_to_sql(document.fields.get(&composite_field_group.primary_field_name).unwrap());
   let mut secondary_values = vec![];
   for field_name in &composite_field_group.sorted_secondary_field_names {
@@ -221,15 +236,23 @@ fn get_field_group_values(
 pub fn subscribe_to_composite_query(
   transaction: &mut Transaction,
   client_id: &str,
+  user_id: &UserId,
   sorted_parameters: &[QueryParameter],
-  composite_group: &CompositeFieldGroup,
-) {
-  let subscription_id: String = Uuid::new_v4().to_string();
+  composite_group: &CompositeFieldGroup)
+  -> String
+{
+  if let User(user_id) = user_id {
+    assert!(operation_is_allowed(user_id, &Operation::List,
+                                 &composite_group.collection_parent_path,
+                                 &composite_group.collection_id, &None));
+  }
+
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
 
-  let mut primary_less_than_param = SqlFieldValue::min();
-  let mut primary_greater_than_parameter = SqlFieldValue::max();
+  let mut primary_less_than_param = field_value::min();
+  let mut primary_greater_than_parameter = field_value::max();
   let mut primary_excluded_parameters = vec![];
   let mut secondary_parameters = vec![];
 
@@ -264,7 +287,7 @@ pub fn subscribe_to_composite_query(
   }
   row_string.push(')');
   let included_query_string = format!("insert into {} values {}", composite_group.included_subscription_table_name(), row_string);
-  let mut included_args: Vec<&(dyn ToSql + Sync)> = vec![&subscription_id, &primary_less_than_param, &primary_greater_than_parameter];
+  let mut included_args: Vec<&(dyn ToSql + Sync)> = vec![&subscription_id, &primary_greater_than_parameter, &primary_less_than_param];
   for secondary_parameter in secondary_parameters.iter() {
     included_args.push(secondary_parameter);
   }
@@ -277,5 +300,7 @@ pub fn subscribe_to_composite_query(
   }
 
   // Todo: trigger first subscription update?
+
+  subscription_id
 }
 

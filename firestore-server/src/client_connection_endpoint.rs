@@ -70,8 +70,8 @@ pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateV
 pub fn confirm_updates(sql_client: &mut Client, user_client_id: &str, update_ids: &[String]) {
   sql_client.execute(
     "delete FROM update_queues U USING client_subscriptions C 
-     where U.subscription_id = C.subscription_id 
-     C.client_id = $1, U.update_id IN $2", &[&user_client_id, &update_ids]).unwrap();
+     where U.subscription_id = C.subscription_id and C.client_id = $1 and U.update_id IN $2",
+    &[&user_client_id, &update_ids]).unwrap();
 }
 
 

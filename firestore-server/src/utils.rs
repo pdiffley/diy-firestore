@@ -14,7 +14,7 @@ use crate::protos::document_protos::Document;
 use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::UserId;
-use crate::sql_types::{SqlFieldValue, Unit};
+use crate::sql_types::{field_value, Unit};
 
 
 pub fn get_document_from_row_id(transaction: &mut Transaction, user_id: &UserId, document_id_row: Row) -> Document {
@@ -27,8 +27,8 @@ pub fn get_document_from_row_id(transaction: &mut Transaction, user_id: &UserId,
     .unwrap()
 }
 
-pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
-  let mut sql_field_value = SqlFieldValue {
+pub fn field_value_proto_to_sql(field_value: &FieldValue) -> field_value {
+  let mut sql_field_value = field_value {
     min:               None,
     null_value:        None,
     boolean_value:     None,
@@ -56,8 +56,8 @@ pub fn field_value_proto_to_sql(field_value: &FieldValue) -> SqlFieldValue {
   sql_field_value
 }
 
-pub fn null_sql_field_value() -> SqlFieldValue {
-  SqlFieldValue {
+pub fn null_sql_field_value() -> field_value {
+  field_value {
     min:               None,
     null_value:        Some(Unit::NotNull),
     boolean_value:     None,

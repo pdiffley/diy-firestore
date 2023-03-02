@@ -15,7 +15,7 @@ use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
-use crate::sql_types::{SqlFieldValue};
+use crate::sql_types::{field_value};
 
 pub fn get_document(
   transaction: &mut Transaction, 
@@ -35,7 +35,7 @@ pub fn get_document(
   let rows = transaction.query(
     "SELECT document_data 
     from documents 
-    where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
     &[&collection_parent_path, &collection_id, &document_id]
   ).unwrap();
 
@@ -64,7 +64,7 @@ pub fn get_documents(
   }
 
   let document_ids: Vec<String> = transaction.query(
-  "select document_id from documents where collection_parent_path = $1, collection_id = $2",
+  "select document_id from documents where collection_parent_path = $1 and collection_id = $2",
   &[&collection_parent_path, &collection_id]).unwrap().into_iter()
     .map(|row| row.get(0))
     .collect();
@@ -106,19 +106,19 @@ pub fn get_affected_basic_subscription_ids(
   document_id: &str,
 ) -> Vec<String> {
   let document_subscriptions: Vec<String> = transaction.query(
-    "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1, collection_id=$2, document_id=$3",
+    "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
     &[&collection_parent_path, &collection_id, &document_id]
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
   let collection_subscriptions: Vec<String> = transaction.query(
-    "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1, collection_id=$2, document_id=NULL",
-    &[&collection_parent_path, &collection_id, &document_id]
+    "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1 and collection_id=$2 and document_id IS NULL",
+    &[&collection_parent_path, &collection_id]
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
   let collection_group_subscriptions: Vec<String> = transaction.query(
-    "SELECT subscription_id from basic_subscriptions where collection_parent_path=NULL, collection_id=$1, document_id=NULL",
+    "SELECT subscription_id from basic_subscriptions where collection_parent_path IS NULL and collection_id=$1 and document_id IS NULL",
     &[&collection_id]
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
@@ -135,44 +135,71 @@ pub fn get_affected_basic_subscription_ids(
 pub fn subscribe_to_document(
   transaction: &mut Transaction,
   client_id: &str,
+  user_id: &UserId,
   collection_parent_path: &str,
   collection_id: &str,
   document_id: &str
-) {
-  let subscription_id: String = Uuid::new_v4().to_string();
+) -> String
+{
+  if let User(user_id) = user_id {
+    assert!(operation_is_allowed(user_id, &Operation::Get,
+                                 &Some(collection_parent_path.to_string()),
+                                 collection_id, &Some(document_id.to_string())));
+  }
+
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
   transaction.execute("insert into basic_subscriptions values ($1, $2, $3, $4)",
                       &[&collection_parent_path, &collection_id, &document_id, &subscription_id]).unwrap();
 
   // Todo: trigger first subscription update?
+  subscription_id
 }
 
 pub fn subscribe_to_collection(
   transaction: &mut Transaction,
   client_id: &str,
+  user_id: &UserId,
   collection_parent_path: &str,
-  collection_id: &str,
-) {
-  let subscription_id: String = Uuid::new_v4().to_string();
+  collection_id: &str)
+  -> String
+{
+  if let User(user_id) = user_id {
+    assert!(operation_is_allowed(user_id, &Operation::List,
+                                 &Some(collection_parent_path.to_string()),
+                                 collection_id, &None));
+  }
+
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
   transaction.execute("insert into basic_subscriptions values ($1, $2, NULL, $3)",
                       &[&collection_parent_path, &collection_id, &subscription_id]).unwrap();
 
   // Todo: trigger first subscription update?
+  subscription_id
 }
 
 pub fn subscribe_to_collection_group(
   transaction: &mut Transaction,
   client_id: &str,
-  collection_id: &str,
-) {
-  let subscription_id: String = Uuid::new_v4().to_string();
+  user_id: &UserId,
+  collection_id: &str)
+  -> String
+{
+  if let User(user_id) = user_id {
+    assert!(operation_is_allowed(user_id, &Operation::List,
+                                 &None,
+                                 collection_id, &None));
+  }
+
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
   transaction.execute("insert into basic_subscriptions values (NULL, $1, NULL, $2)",
                       &[&collection_id, &subscription_id]).unwrap();
 
   // Todo: trigger first subscription update?
+  subscription_id
 }
