@@ -72,6 +72,7 @@ pub fn null_sql_field_value() -> field_value {
   }
 }
 
+//TODO: Fix this to avoid information loss
 pub fn prepare_field_value_constraint(
   column_name: &str,
   operator: &str,
@@ -80,19 +81,44 @@ pub fn prepare_field_value_constraint(
 -> (String, Vec<field_value>)
 {
   if value.integer_value.is_none() && value.double_value.is_none() {
-    return (format!("{} {} ${}", column_name, operator, arg_count), vec![value.clone()]);
+    return no_op_field_value_constraint(column_name, operator, arg_count, value);
   }
 
+  // if let Some(double_value) = value.double_value {
+  //   if double_value != double_value.round() ||
+  //     double_value > (i64::MAX as f64) ||
+  //     double_value < (i64::MIN as f64)
+  //   {
+  //     return no_op_field_value_constraint(column_name, operator, arg_count, value);
+  //   }
+  // }
+
+  // If the double value has no equivalent integer, return the default constraint
   if let Some(double_value) = value.double_value {
-    if double_value != double_value.round() ||
-      double_value > (i64::MAX as f64) ||
-      double_value < (i64::MIN as f64)
-    {
-      return (format!("{} {} ${}", column_name, operator, arg_count), vec![value.clone()]);
+    if (double_value as i64) as f64 != double_value {
+      return no_op_field_value_constraint(column_name, operator, arg_count, value);
     }
   }
 
+  // If the integer value has no equivalent double, return the default constraint
+  if let Some(integer_value) = value.integer_value {
+    if (integer_value as f64) as i64 != integer_value {
+      return return no_op_field_value_constraint(column_name, operator, arg_count, value);
+    }
+  }
+
+
   return prepare_numeric_field_value_constraint(column_name, operator, arg_count, value);
+}
+
+fn no_op_field_value_constraint(
+  column_name: &str,
+  operator: &str,
+  arg_count: usize,
+  value: &field_value)
+  -> (String, Vec<field_value>)
+{
+  return (format!("{} {} ${}", column_name, operator, arg_count), vec![value.clone()]);
 }
 
 fn prepare_numeric_field_value_constraint(

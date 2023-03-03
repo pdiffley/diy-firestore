@@ -1,7 +1,13 @@
 
-CREATE TABLE test (
-  unit_column  "Unit"
+CREATE TABLE test_table (
+  myvar  int8
 );
+create index testindex1 on test_table(myvar);
+
+CREATE TABLE field_test_table(
+  myvar   field_value
+);
+create index field_testindex1 on field_test_table(myvar);
 
 CREATE TABLE documents (
   collection_parent_path      text,

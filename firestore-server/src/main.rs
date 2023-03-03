@@ -31,7 +31,7 @@ use sql_types::{field_value};
 
 // create an alias for a Result that can contain any error
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
-
+use stopwatch::{Stopwatch};
 use std::process::Command;
 use uuid::Uuid;
 use crate::basic_read::{get_document, get_documents, get_documents_from_collection_group, subscribe_to_collection, subscribe_to_collection_group, subscribe_to_document};
@@ -44,9 +44,13 @@ use crate::write::{delete_document, write_document};
 
 fn main() -> Result<()> {
 
-  println!("{:?}", ((i64::MAX as f64) as i64) == i64::MAX);
+  println!("{:?}", (((i64::MAX - 1) as f64) as i64) == i64::MAX - 1);
+  println!("{:?}", ((f64::MAX) as i64) as f64);
+  println!("{:?}", ((f64::MAX) as i64) == i64::MAX);
+  println!("{:?}", ((f64::MAX - 123.5) as i64) == i64::MAX);
+  println!("{:?}", ((f64::MIN + 16.1) as i64) == i64::MIN);
   println!("{:?}", ((i64::MIN as f64) as i64) == i64::MIN);
-  mainish();
+  // mainish();
   Ok(())
 }
 

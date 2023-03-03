@@ -419,7 +419,7 @@ using btree as
 
 The database will now use our user defined comparison operators to compare field_value types and build a btree index for field_value columns! Let's test this out.
 
-<add deduplication>
+<make note on deduplication and other optimization parameters>
 
 
 
