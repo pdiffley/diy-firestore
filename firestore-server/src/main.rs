@@ -34,19 +34,19 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 use std::process::Command;
 use uuid::Uuid;
-use crate::basic_read::{subscribe_to_collection, subscribe_to_collection_group, subscribe_to_document};
-use crate::composite_query::{CompositeFieldGroup, CompositeFieldGroupType, QueryParameter, subscribe_to_composite_query};
+use crate::basic_read::{get_document, get_documents, get_documents_from_collection_group, subscribe_to_collection, subscribe_to_collection_group, subscribe_to_document};
+use crate::composite_query::{composite_query, CompositeFieldGroup, CompositeFieldGroupType, QueryParameter, subscribe_to_composite_query};
 use crate::security_rules::UserId;
 use crate::simple_query::subscribe_to_simple_query;
+use crate::simple_query::simple_query;
 use crate::sql_types::Unit;
 use crate::write::{delete_document, write_document};
 
-// TODO: ACCOUNT FOR DOUBLE / INTEGER COMPARISON
-// TODO: Rename "Get affected" susbscriptionids to "getMatching"
 fn main() -> Result<()> {
-  // basic_subscription();
+
+  println!("{:?}", ((i64::MAX as f64) as i64) == i64::MAX);
+  println!("{:?}", ((i64::MIN as f64) as i64) == i64::MIN);
   mainish();
-  println!();
   Ok(())
 }
 
@@ -314,6 +314,60 @@ fn mainish() {
   println!("{}", composite_subscription_id);
   get_subscription_updates(&mut transaction, &composite_subscription_id);
   println!();
+
+
+  println!("{:?}", get_document(&mut transaction, &user_id, "/", "users", "AAA"));
+  println!();
+  println!("{:?}", get_documents(&mut transaction, &user_id, "/", "users"));
+  println!();
+  println!("{:?}", get_documents_from_collection_group(&mut transaction, &user_id, "posts"));
+
+  let mut age_field_value_30 = field_value::default();
+  age_field_value_30.integer_value = Some(25);
+  let simple_query_age_result = simple_query(
+    &mut transaction,
+    &user_id,
+    &Some(user_doc_id_1.collection_parent_path.clone()),
+    &user_doc_id_1.collection_id,
+    "age",
+    ">",
+    &age_field_value_30
+  );
+  for doc in simple_query_age_result {
+    println!("{:?}", doc);
+  }
+  println!();
+
+  let mut name_field_value_avery = field_value::default();
+  name_field_value_avery.string_value = Some("Avery".to_string());
+  let simple_query_name_result = simple_query(
+    &mut transaction,
+    &user_id,
+    &Some(user_doc_id_1.collection_parent_path.clone()),
+    &user_doc_id_1.collection_id,
+    "name",
+    "=",
+    &name_field_value_avery
+  );
+  for doc in simple_query_name_result {
+    println!("{:?}", doc);
+  }
+  println!();
+
+
+  let composite_query_result = composite_query(
+    &mut transaction,
+    &user_id,
+    &parameters,
+    &composite_field_group
+  );
+  for doc in composite_query_result {
+    println!("{:?}", doc);
+  }
+  println!();
+
+
+
   transaction.commit().unwrap();
 
 

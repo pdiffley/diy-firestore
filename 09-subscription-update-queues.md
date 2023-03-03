@@ -1,3 +1,9 @@
+```
+fjklsajfdlsa
+```
+
+
+
 Now we can implement our actual client side updates.
 
 With a naive implemenation, we would just notify the client that a subscription was updated, and have it re-query the data. 

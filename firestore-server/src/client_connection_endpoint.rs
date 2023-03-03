@@ -48,7 +48,7 @@ pub struct UpdateValue {
 
 pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateValue> {
   sql_client.query(
-    "SELECT (subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id) 
+    "SELECT subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id
      FROM client_subscriptions C JOIN update_queues U 
      ON C.subscription_id = U.subscription_id 
      WHERE C.client_id = $1 

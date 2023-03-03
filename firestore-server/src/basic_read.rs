@@ -89,7 +89,7 @@ pub fn get_documents_from_collection_group(
   }
 
   let document_id_rows: Vec<_> = transaction.query(
-    "select (collection_parent_path, document_id) from documents where collection_id = $1",
+    "select collection_parent_path, document_id from documents where collection_id = $1",
     &[&collection_id]
   ).unwrap();
 
@@ -99,7 +99,7 @@ pub fn get_documents_from_collection_group(
   documents
 }
 
-pub fn get_affected_basic_subscription_ids(
+pub fn get_matching_basic_subscription_ids(
   transaction: &mut Transaction,
   collection_parent_path: &str,
   collection_id: &str,
@@ -123,12 +123,12 @@ pub fn get_affected_basic_subscription_ids(
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
-  let all_affected_subscriptions: Vec<String> =
+  let all_matching_subscriptions: Vec<String> =
     document_subscriptions.into_iter()
       .chain(collection_subscriptions.into_iter())
       .chain(collection_group_subscriptions.into_iter())
       .collect();
-  all_affected_subscriptions
+  all_matching_subscriptions
 }
 
 

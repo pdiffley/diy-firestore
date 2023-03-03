@@ -15,8 +15,8 @@ create table composite_included_table_d8b8c614b73546daa1d85531dc412ef6(
   subscription_id   text,
   min_age           field_value,
   max_age           field_value,
-  name              field_value,
   city              field_value,
+  name              field_value,
   zipcode           field_value
 );
 

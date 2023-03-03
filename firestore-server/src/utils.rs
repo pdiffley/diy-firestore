@@ -72,4 +72,69 @@ pub fn null_sql_field_value() -> field_value {
   }
 }
 
+pub fn prepare_field_value_constraint(
+  column_name: &str,
+  operator: &str,
+  arg_count: usize,
+  value: &field_value)
+-> (String, Vec<field_value>)
+{
+  if value.integer_value.is_none() && value.double_value.is_none() {
+    return (format!("{} {} ${}", column_name, operator, arg_count), vec![value.clone()]);
+  }
 
+  if let Some(double_value) = value.double_value {
+    if double_value != double_value.round() ||
+      double_value > (i64::MAX as f64) ||
+      double_value < (i64::MIN as f64)
+    {
+      return (format!("{} {} ${}", column_name, operator, arg_count), vec![value.clone()]);
+    }
+  }
+
+  return prepare_numeric_field_value_constraint(column_name, operator, arg_count, value);
+}
+
+fn prepare_numeric_field_value_constraint(
+  column_name: &str,
+  operator: &str,
+  arg_count: usize,
+  value: &field_value)
+-> (String, Vec<field_value>)
+{
+  let double_return_value = {
+    let mut double_return_value = field_value::default();
+    if let Some(double_value) = value.double_value {
+      double_return_value.double_value = Some(double_value);
+    } else {
+      double_return_value.double_value = Some(value.integer_value.unwrap() as f64);
+    }
+    double_return_value
+  };
+
+  let integer_return_value = {
+    let mut integer_return_value = field_value::default();
+    if let Some(integer_value) = value.integer_value {
+      integer_return_value.integer_value = Some(integer_value);
+    } else {
+      integer_return_value.integer_value = Some(value.double_value.unwrap() as i64);
+    }
+    integer_return_value
+  };
+
+  if operator == "<=" || operator == ">" {
+    return (format!("{} {} ${}", column_name, operator, arg_count), vec![double_return_value]);
+  }
+
+  if operator == "<" || operator == ">=" {
+    return (format!("{} {} ${}", column_name, operator, arg_count), vec![integer_return_value]);
+  }
+
+  let constraint: String;
+  if operator == "=" {
+    constraint = format!("({0} = ${1} or {0} = ${2})", column_name, arg_count, arg_count + 1);
+  } else {
+    constraint = format!("({0} != ${1} and {0} != ${2})", column_name, arg_count, arg_count + 1);
+  }
+  return (constraint, vec![double_return_value, integer_return_value]);
+}

@@ -9,15 +9,15 @@ use bytes::{Bytes, BytesMut};
 
 use itertools::Itertools;
 use uuid::Uuid;
-use crate::basic_read::{get_affected_basic_subscription_ids, get_document};
-use crate::composite_query::{add_document_to_composite_query_tables, CompositeFieldGroup, delete_document_from_composite_query_tables, get_affected_composite_query_subscriptions};
+use crate::basic_read::{get_matching_basic_subscription_ids, get_document};
+use crate::composite_query::{add_document_to_composite_query_tables, CompositeFieldGroup, delete_document_from_composite_query_tables, get_matching_composite_query_subscriptions};
 
 use crate::protos::document_protos::Document;
 use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
-use crate::simple_query::{add_document_to_simple_query_table, delete_document_from_simple_query_table, get_affected_simple_query_subscriptions};
+use crate::simple_query::{add_document_to_simple_query_table, delete_document_from_simple_query_table, get_matching_simple_query_subscriptions};
 use crate::sql_types::{field_value};
 use crate::update_queue::{add_update_to_queues};
 
@@ -42,17 +42,17 @@ fn create_document(
   add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
   add_document_to_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, document, composite_groups);
 
-  let affected_subscriptions = {
-    let mut affected_subscriptions = vec![];
-    affected_subscriptions.extend(get_affected_basic_subscription_ids (transaction, collection_parent_path, collection_id, document_id).into_iter());
-    affected_subscriptions.extend(get_affected_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
-    affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, document, composite_groups).into_iter());
-    affected_subscriptions
+  let matching_subscriptions = {
+    let mut matching_subscriptions = vec![];
+    matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+    matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
+    matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, document, composite_groups).into_iter());
+    matching_subscriptions
   };
 
   add_update_to_queues(
     transaction,
-    &affected_subscriptions,
+    &matching_subscriptions,
     collection_parent_path,
     collection_id,
     document_id,
@@ -84,18 +84,18 @@ pub fn delete_document(
     delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
     delete_document_from_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, composite_groups);
 
-    let affected_subscriptions = {
-      let mut affected_subscriptions = vec![];
-      affected_subscriptions.extend(get_affected_basic_subscription_ids (transaction, collection_parent_path, collection_id, document_id).into_iter());
-      affected_subscriptions.extend(get_affected_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
-      affected_subscriptions.extend(get_affected_composite_query_subscriptions(transaction, &document, composite_groups).into_iter());
-      affected_subscriptions
+    let matching_subscriptions = {
+      let mut matching_subscriptions = vec![];
+      matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+      matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
+      matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, &document, composite_groups).into_iter());
+      matching_subscriptions
     };
 
     let update_id: String = Uuid::new_v4().as_simple().to_string();
     add_update_to_queues(
       transaction,
-      &affected_subscriptions,
+      &matching_subscriptions,
       collection_parent_path,
       collection_id,
       document_id,

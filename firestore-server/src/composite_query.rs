@@ -54,11 +54,11 @@ pub enum CompositeFieldGroupType {
   CollectionGroup
 }
 
-pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, collection_parent_path: &Option<String>, collection_id: &str, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
+pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
   if let User(user_id) = user_id {
     assert!(operation_is_allowed(user_id, &Operation::List,
-                                 &collection_parent_path,
-                                 collection_id, &None));
+                                 &composite_group.collection_parent_path,
+                                 &composite_group.collection_id, &None));
   }
 
   let query_string = {
@@ -150,19 +150,19 @@ fn delete_document_from_composite_query_table(
   transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
 }
 
-pub fn get_affected_composite_query_subscriptions(
+pub fn get_matching_composite_query_subscriptions(
   transaction: &mut Transaction,
   document: &Document,
   composite_groups: &[CompositeFieldGroup],
 ) -> Vec<String> {
-  let mut affected_subscriptions: Vec<String> = vec![];
+  let mut matching_subscriptions: Vec<String> = vec![];
   for composite_group in composite_groups {
-    affected_subscriptions.extend(get_affected_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
+    matching_subscriptions.extend(get_matching_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
   }
-  affected_subscriptions
+  matching_subscriptions
 }
 
-fn get_affected_subscriptions_for_composite_group(
+fn get_matching_subscriptions_for_composite_group(
   transaction: &mut Transaction,
   document: &Document,
   composite_group: &CompositeFieldGroup,
@@ -199,22 +199,12 @@ fn get_affected_subscriptions_for_composite_group(
   let mut args: Vec<&(dyn ToSql + Sync)> = vec![&primary_value];
   args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
 
-
-
-  let included_subscription_ids: Vec<String> = transaction.query(&excluded_query_string, &[&primary_value]).unwrap()
+  let matching_subscription_ids = transaction.query(&query_string, &args).unwrap()
     .into_iter()
     .map(|x| x.get::<usize, String>(0))
     .collect();
 
-  println!("{:?}", included_subscription_ids);
-
-
-  let affected_subscription_ids = transaction.query(&query_string, &args).unwrap()
-    .into_iter()
-    .map(|x| x.get::<usize, String>(0))
-    .collect();
-
-  affected_subscription_ids
+  matching_subscription_ids
 }
 
 fn get_field_group_values(

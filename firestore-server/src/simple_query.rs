@@ -16,7 +16,7 @@ use crate::protos::document_protos::field_value::Value;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
 use crate::sql_types::{field_value};
-use crate::utils::{field_value_proto_to_sql, get_document_from_row_id};
+use crate::utils::{field_value_proto_to_sql, get_document_from_row_id, prepare_field_value_constraint};
 
 // TODO: Add security check when updating subscription data
 
@@ -27,7 +27,7 @@ pub fn simple_query(
   collection_id: &str,
   field_name: &str,
   field_operator: &str,
-  field_value: &FieldValue
+  field_value: &field_value
 ) -> Vec<Document> {
   if let User(user_id) = user_id {
     assert!(operation_is_allowed(user_id, &Operation::List,
@@ -35,16 +35,17 @@ pub fn simple_query(
                                  collection_id, &None));
   }
 
-  let sql_field_value = field_value_proto_to_sql(field_value);
   let query_result;
   if let Some(collection_parent_path) = collection_parent_path {
+    let query_string = format!("SELECT collection_parent_path, collection_id, document_id from simple_query_lookup where collection_parent_path = $1 and collection_id = $2 and field_name = $3 and field_value {} $4", field_operator);
     query_result = transaction.query(
-      "SELECT (collection_parent_path, collection_id, document_id) from simple_query_lookup where collection_parent_path = $1 and collection_id = $2 and field_name = $3 and field_value $4 $5",
-      &[&collection_parent_path, &collection_id, &field_name, &field_operator, &sql_field_value])
+      &query_string,
+      &[&collection_parent_path, &collection_id, &field_name, &field_value])
   } else {
+    let query_string = format!("SELECT collection_parent_path, collection_id, document_id from simple_query_lookup where collection_id = $1 and field_name = $2 and field_value {} $3", field_operator);
     query_result = transaction.query(
-      "SELECT (collection_parent_path, collection_id, document_id) from simple_query_lookup where collection_id = $1 and field_name = $2 and field_value $3 $4",
-      &[&collection_id, &field_name, &field_operator, &sql_field_value])
+      &query_string,
+      &[&collection_id, &field_name, &field_value])
   }
   query_result.unwrap().into_iter()
     .map(|row| get_document_from_row_id(transaction, user_id, row))
@@ -52,10 +53,10 @@ pub fn simple_query(
 }
 
 
-pub fn get_affected_simple_query_subscriptions(transaction: &mut Transaction, collection_parent_path: &str, collection_id: &str, document: &Document) -> Vec<String> {
+pub fn get_matching_simple_query_subscriptions(transaction: &mut Transaction, collection_parent_path: &str, collection_id: &str, document: &Document) -> Vec<String> {
   let operator_pairs = vec![("<", ">"), ("<=", ">="), ("=", "="), ("!=", "!="), (">", "<"), (">=", "<=")];
 
-  let mut affected_subscriptions = vec![];
+  let mut matching_subscriptions = vec![];
   for (field_name, field_value) in document.fields.iter() {
     let sql_field_value = field_value_proto_to_sql(field_value);
     for operator_pair in &operator_pairs {
@@ -64,18 +65,18 @@ pub fn get_affected_simple_query_subscriptions(transaction: &mut Transaction, co
         &collection_query,
         &[&collection_parent_path, &collection_id, &field_name, &operator_pair.0, &sql_field_value]
       ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
-      affected_subscriptions.extend(collection_subscriptions);
+      matching_subscriptions.extend(collection_subscriptions);
 
       let collection_group_query = format!("select subscription_id from simple_query_subscriptions where collection_parent_path IS NULL and collection_id = $1 and field_name = $2 and field_operator = $3 and field_value {} $4", operator_pair.1);
       let collection_group_subscriptions = transaction.query(
         &collection_group_query,
         &[&collection_id, &field_name, &operator_pair.0, &sql_field_value]
       ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
-      affected_subscriptions.extend(collection_group_subscriptions)
+      matching_subscriptions.extend(collection_group_subscriptions)
     }
   }
 
-  affected_subscriptions
+  matching_subscriptions
 }
 
 pub fn add_document_to_simple_query_table(
