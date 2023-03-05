@@ -1,16 +1,16 @@
-CREATE TYPE "Unit" AS ENUM ('NotNull');
+CREATE TYPE "Unit" AS ENUM ('Exists');
 
 CREATE TYPE field_value AS (
   min               "Unit",
   null_value        "Unit",
-  boolean_value     boolean,
-  integer_value     int8,
-  double_value      float8,
-  timestamp_nanos   int8,
-  timestamp_seconds int8,
-  string_value      text,
+  boolean_value     BOOLEAN,
+  integer_value     INT8,
+  double_value      FLOAT8,
+  timestamp_nanos   INT8,
+  timestamp_seconds INT8,
+  string_value      TEXT,
   bytes_value       bytea,
-  reference_value   text,
+  reference_value   TEXT,
   max               "Unit"
 );
 
@@ -26,7 +26,7 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 create or replace function integer_cmp(a int8, b int8) returns int2 as $$
 begin
@@ -38,7 +38,7 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 create or replace function float_cmp(a float8, b float8) returns int2 as $$
 begin
@@ -50,7 +50,19 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
+
+create or replace function integer_float_cmp(a int8, b float8) returns int2 as $$
+begin
+  if a > b then
+    return 1;
+  elsif a > b then
+    return 1;
+  else
+    return 0;
+  end if;
+end;
+$$language plpgsql;
 
 create or replace function string_cmp(a text, b text) returns int2 as $$
 begin
@@ -62,7 +74,7 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 create or replace function bytes_cmp(a bytea, b bytea) returns int2 as $$
 begin
@@ -74,20 +86,11 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 
 -- COMPOSITE COMPARISON FUNCTIONS
 
-create or replace function integer_float_cmp(a int8, b float8) returns int2 as $$
-begin
-  if a > b then
-    return 1;
-  else
-    return -1;
-  end if;
-end;
-$$LANGUAGE plpgsql;
 
 create or replace function numeric_field_value_cmp(a field_value, b field_value) returns int2 as $$
 begin
@@ -105,7 +108,7 @@ begin
     end if;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 -- NOTE: A field_value type with timestamp_nanos >= 10^9 is considered invalid and an error
 create or replace function timestamp_field_value_cmp(a field_value, b field_value) returns int2 as $$
@@ -116,7 +119,7 @@ begin
     return integer_cmp(a.timestamp_seconds, b.timestamp_seconds);
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 
 -- MATCHING FIELD COMPARISON
@@ -142,7 +145,7 @@ begin
     return 0;
   end if;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 -- FIELD VALUE TYPE IDENTIFICATION
 create or replace function get_field_value_type(a field_value) returns int2 as $$
@@ -168,10 +171,10 @@ begin
   end if;
   return -1;
 end;
-$$LANGUAGE plpgsql;
+$$language plpgsql;
 
 -- FINAL COMPARISON FUNCTION
-CREATE OR REPLACE FUNCTION field_value_cmp(a field_value, b field_value) RETURNS integer AS $$
+create or replace function field_value_cmp(a field_value, b field_value) returns integer AS $$
 declare
   a_value_type int2;
   b_value_type int2;
@@ -186,55 +189,49 @@ begin
     return matching_field_value_cmp(a,b);
   end if;
 end;
-$$LANGUAGE plpgsql;
-
-
-
--- show user example of calling function directly 
--- show user example of create composite type
-
+$$language plpgsql;
 
 -- Less than
-CREATE OR REPLACE FUNCTION field_value_lt(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) = -1;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_lt(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) = -1;
+end;
+$$language plpgsql;
 
 -- Less than or equal to
-CREATE OR REPLACE FUNCTION field_value_lte(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) != 1;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_lte(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) != 1;
+end;
+$$language plpgsql;
 
 -- Greater than
-CREATE OR REPLACE FUNCTION field_value_gt(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) = 1;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_gt(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) = 1;
+end;
+$$language plpgsql;
 
 -- Greater than or equal to
-CREATE OR REPLACE FUNCTION field_value_gte(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) != -1;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_gte(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) != -1;
+end;
+$$language plpgsql;
 
 -- Equal
-CREATE OR REPLACE FUNCTION field_value_eq(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) = 0;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_eq(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) = 0;
+end;
+$$language plpgsql;
 
 -- Not equal
-CREATE OR REPLACE FUNCTION field_value_neq(a field_value, b field_value) RETURNS boolean AS $$
-BEGIN
-  RETURN field_value_cmp(a, b) != 0;
-END;
-$$LANGUAGE plpgsql;
+create or replace function field_value_neq(a field_value, b field_value) returns boolean AS $$
+begin
+  return field_value_cmp(a, b) != 0;
+end;
+$$language plpgsql;
 
 
 
@@ -301,12 +298,11 @@ CREATE OPERATOR != (
 );
 
 
-create operator class field_value_ops default for type field_value
-using btree as
+CREATE OPERATOR CLASS field_value_ops DEFAULT for TYPE field_value
+USING btree AS
   OPERATOR 1 < ,
   OPERATOR 2 <= ,
   OPERATOR 3 = ,
   OPERATOR 4 >= ,
   OPERATOR 5 > ,
-  FUNCTION 1 field_value_cmp(field_value, field_value)
-;
+  FUNCTION 1 field_value_cmp(field_value, field_value);

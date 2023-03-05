@@ -1,6 +1,9 @@
-
 pub enum Operation {
-  Get, List, Create, Update, Delete
+  Get,
+  List,
+  Create,
+  Update,
+  Delete,
 }
 
 pub enum UserId {

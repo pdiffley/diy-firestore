@@ -10,7 +10,6 @@ use postgres::types::{ToSql, Type};
 use prost::Message;
 use sql_query_builder;
 use uuid::Uuid;
-use crate::basic_read::get_document;
 
 use crate::protos::document_protos::Document;
 use crate::protos::document_protos::field_value::Value;
@@ -20,15 +19,10 @@ use crate::security_rules::UserId::User;
 use crate::sql_types::field_value;
 use crate::utils::{field_value_proto_to_sql, null_sql_field_value};
 
-#[derive(Debug, Clone)]
-pub struct QueryParameter {
-  pub field_name: String,
-  pub operator: String,
-  pub parameter: field_value,
-  pub is_primary: bool,
-}
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
 
-#[derive(Debug, Clone)]
 pub struct CompositeFieldGroup {
   pub group_id: String,
   pub collection_parent_path: Option<String>,
@@ -41,27 +35,17 @@ impl CompositeFieldGroup {
   fn lookup_table_name(&self) -> String {
     format!("composite_lookup_table_{}", self.group_id)
   }
-  fn included_subscription_table_name(&self) -> String {
-    format!("composite_included_table_{}", self.group_id)
-  }
-  fn excluded_subscription_table_name(&self) -> String {
-    format!("composite_excluded_table_{}", self.group_id)
-  }
 }
 
-#[derive(Debug, Clone)]
-pub enum CompositeFieldGroupType {
-  Collection,
-  CollectionGroup,
-}
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
 
-pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
-  if let User(user_id) = user_id {
-    assert!(operation_is_allowed(user_id, &Operation::List,
-                                 &composite_group.collection_parent_path,
-                                 &composite_group.collection_id, &None));
-  }
 
+pub fn composite_query(
+  transaction: &mut Transaction,
+  parameters: &[QueryParameter],
+  composite_group: &CompositeFieldGroup) -> Vec<Document> {
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
@@ -78,12 +62,24 @@ pub fn composite_query(transaction: &mut Transaction, user_id: &UserId, paramete
   let documents: Vec<Document> = transaction.query(&query_string, &args[..])
     .unwrap()
     .into_iter()
-    .map(|row| get_document(transaction, user_id,row.get("collection_parent_path"),
-                            row.get("collection_id"), row.get("document_id")).unwrap())
+    .map(|row| get_document_from_row_id(transaction, row))
     .collect();
   documents
 }
 
+pub struct QueryParameter {
+  pub field_name: String,
+  pub operator: String,
+  pub parameter: field_value,
+  pub is_primary: bool,
+}
+
+
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+// on write update composite lookup table
 pub fn add_document_to_composite_query_tables(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -152,63 +148,6 @@ fn delete_document_from_composite_query_table(
   transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
 }
 
-pub fn get_matching_composite_query_subscriptions(
-  transaction: &mut Transaction,
-  document: &Document,
-  composite_groups: &[CompositeFieldGroup],
-) -> Vec<String> {
-  let mut matching_subscriptions: Vec<String> = vec![];
-  for composite_group in composite_groups {
-    matching_subscriptions.extend(get_matching_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
-  }
-  matching_subscriptions
-}
-
-fn get_matching_subscriptions_for_composite_group(
-  transaction: &mut Transaction,
-  document: &Document,
-  composite_group: &CompositeFieldGroup,
-) -> Vec<String> {
-  let primary_field_name = &composite_group.primary_field_name;
-  let included_query_string = {
-    let mut included_query = sql_query_builder::Select::new()
-      .select("subscription_id")
-      .from(&format!("{}", composite_group.included_subscription_table_name()));
-
-    if document.fields.contains_key(primary_field_name) {
-      included_query = included_query
-        .where_clause(&format!("min_{0} <= $1", primary_field_name))
-        .where_clause(&format!("max_{0} >= $1", primary_field_name));
-    }
-
-    for (i, field_name) in composite_group.sorted_secondary_field_names.iter().enumerate() {
-      if document.fields.contains_key(field_name) {
-        included_query = included_query.where_clause(&format!("{0} = ${1}", field_name, i + 2));
-      }
-    }
-    included_query.as_string()
-  };
-
-  let excluded_query_string =
-    format!("select distinct subscription_id from {} where excluded_{} = $1",
-            composite_group.excluded_subscription_table_name(), primary_field_name);
-
-
-  let query_string = format!("({}) EXCEPT ({})",
-                             included_query_string, excluded_query_string);
-
-  let (primary_value, secondary_values) = get_field_group_values(document, composite_group);
-  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&primary_value];
-  args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
-
-  let matching_subscription_ids = transaction.query(&query_string, &args).unwrap()
-    .into_iter()
-    .map(|x| x.get::<usize, String>(0))
-    .collect();
-
-  matching_subscription_ids
-}
-
 fn get_field_group_values(
   document: &Document,
   composite_field_group: &CompositeFieldGroup,
@@ -225,20 +164,18 @@ fn get_field_group_values(
   (primary_value, secondary_values)
 }
 
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+
 pub fn subscribe_to_composite_query(
   transaction: &mut Transaction,
   client_id: &str,
-  user_id: &UserId,
   sorted_parameters: &[QueryParameter],
   composite_group: &CompositeFieldGroup)
   -> String
 {
-  if let User(user_id) = user_id {
-    assert!(operation_is_allowed(user_id, &Operation::List,
-                                 &composite_group.collection_parent_path,
-                                 &composite_group.collection_id, &None));
-  }
-
   let subscription_id: String = Uuid::new_v4().as_simple().to_string();
   transaction.execute("insert into client_subscriptions values ($1, $2)",
                       &[&subscription_id, &client_id]).unwrap();
@@ -296,3 +233,105 @@ pub fn subscribe_to_composite_query(
   subscription_id
 }
 
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+
+// on write
+
+pub fn get_matching_composite_query_subscriptions(
+  transaction: &mut Transaction,
+  document: &Document,
+  composite_groups: &[CompositeFieldGroup],
+) -> Vec<String> {
+  let mut matching_subscriptions: Vec<String> = vec![];
+  for composite_group in composite_groups {
+    matching_subscriptions.extend(get_matching_subscriptions_for_composite_group(transaction, document, composite_group).into_iter());
+  }
+  matching_subscriptions
+}
+
+fn get_matching_subscriptions_for_composite_group(
+  transaction: &mut Transaction,
+  document: &Document,
+  composite_group: &CompositeFieldGroup,
+) -> Vec<String> {
+  let primary_field_name = &composite_group.primary_field_name;
+  let included_query_string = {
+    let mut included_query = sql_query_builder::Select::new()
+      .select("subscription_id")
+      .from(&format!("{}", composite_group.included_subscription_table_name()));
+
+    if document.fields.contains_key(primary_field_name) {
+      included_query = included_query
+        .where_clause(&format!("min_{0} <= $1", primary_field_name))
+        .where_clause(&format!("max_{0} >= $1", primary_field_name));
+    }
+
+    for (i, field_name) in composite_group.sorted_secondary_field_names.iter().enumerate() {
+      if document.fields.contains_key(field_name) {
+        included_query = included_query.where_clause(&format!("{0} = ${1}", field_name, i + 2));
+      }
+    }
+    included_query.as_string()
+  };
+
+  let excluded_query_string =
+    format!("select distinct subscription_id from {} where excluded_{} = $1",
+            composite_group.excluded_subscription_table_name(), primary_field_name);
+
+
+  let query_string = format!("({}) EXCEPT ({})",
+                             included_query_string, excluded_query_string);
+
+  let (primary_value, secondary_values) = get_field_group_values(document, composite_group);
+  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&primary_value];
+  args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
+
+  let matching_subscription_ids = transaction.query(&query_string, &args).unwrap()
+    .into_iter()
+    .map(|x| x.get::<usize, String>(0))
+    .collect();
+
+  matching_subscription_ids
+}
+
+// =================================================================================================
+// =================================================================================================
+// =================================================================================================
+
+
+fn get_document_from_row_id(transaction: &mut Transaction, document_id_row: Row) -> Document {
+  get_document(
+    transaction,
+    document_id_row.get("collection_parent_path"),
+    document_id_row.get("collection_id"),
+    document_id_row.get("document_id"))
+    .unwrap()
+}
+
+fn get_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str)
+  -> Option<Document>
+{
+  // security check
+  let rows = transaction.query(
+    "SELECT document_data
+    from documents
+    where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+    &[&collection_parent_path, &collection_id, &document_id],
+  ).unwrap();
+
+  if rows.len() == 0 {
+    return None;
+  }
+
+  let encoded_document: Vec<u8> = rows[0].get(0);
+
+  let document: Document = Document::decode(&encoded_document[..]).unwrap();
+  Some(document)
+}

@@ -1,0 +1,86 @@
+## Queries: first attempt
+
+Because we are storing our schema-less document data in a single binary column, we can’t directly query our document data. To get around this, we will create a lookup table that we will use to query our documents.
+
+### Simple Queries
+
+First, let’s look at how we will support simple queries on a single field. Firestore allows us to query documents in a collection based on a single field without specifying what fields we want to query in advance. Because we have no knowledge of what fields we will query in advance, we can’t structure the schema of our lookup table around specific queries or documents. Instead, we need a generic was to query documents based on any field a user wants to search for at run time. To that end, we will create the lookup table `simple_query_lookup`
+
+```postgresql
+CREATE TABLE simple_query_lookup (
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  field_name                  TEXT,
+  field_value                 field_value,
+  PRIMARY KEY (collection_parent_path, collection_id, document_id, field_name)
+);
+```
+
+Each row in our table has a unique identifier for a document (collection_parent_path, collection_path, doc_id), the name of a field within that document and that field’s value. Now, when we write a document to the database, we will also add all of its fields to our lookup table.
+
+There is one odd thing about the schema of our table though. The field_value column has the type field_value. This is definitely not a native type supported by Postgres, so what is going on here?
+
+### Creating a custom type
+
+Any field in our document can have multiple data types which makes it difficult to store the field values in our table. Like with our protobuf, we need to create a type that can represent any of the subtypes that can be assigned to our field values. Conveniently, Postgres has a "create type" function that will let us do just that. There are [several options](https://www.postgresql.org/docs/current/sql-createtype.html) for creating a type. We will create a composite type with type field_value with the following command
+
+```postgresql
+CREATE TYPE "Unit" AS ENUM ('NotNull');
+
+CREATE TYPE field_value AS (
+  min               "Unit",
+  null_value        "Unit",
+  boolean_value     BOOLEAN,
+  integer_value     INT8,
+  double_value      FLOAT8,
+  timestamp_nanos   INT8,
+  timestamp_seconds INT8,
+  string_value      TEXT,
+  bytes_value       bytea,
+  reference_value   TEXT,
+  max               "Unit"
+);
+
+```
+
+Our field_value type has values that can be set to represent any of the datatypes that will be held in our database. We do not have the convenient "oneof" feature that protobuf has, but for a given field, we will set the unused types to null. Note that if our value represents a timestamp, both the timestamp_nanos and timestamp_seconds field will have a value. We also created a `min` and `max` field so that internally, we can have a field value that is smaller or larger than any valid field input by the user. 
+
+Composite types in Postgres behave similarly to rows in a table, and we can create an instance of our variable with similar syntax.
+
+```postgresql
+CAST((,,5,,,,,,) as field_value)
+```
+
+Here we create a row type holding the integer value 5, then cast it so postgres will recognize it as our composite field_value type. 
+
+### Composite Type Ordering
+
+We have a problem though. Postgres does not know how to properly order our field_value type. Consider the following example. 
+
+```postgresql
+SELECT * FROM ( VALUES
+	(CAST((NULL, NULL, NULL, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
+	(CAST((NULL, NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
+	(CAST((NULL, NULL, NULL, NULL, 1.0, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value))) 
+  AS test_table(field_value)
+ORDER BY field_value ASC;
+
+```
+
+Running this command which attempts to put two field values in ascending order results in the output
+
+```
+  field_value  
+---------------
+ (,,,1,,,,,,,)
+ (,,,2,,,,,,,)
+ (,,,,1,,,,,,)
+```
+
+The default comparison operator for composite values evaluates fields based on the order they are listed. Because integer_value comes before float_value in our compsite type, Postgres considers our integer value 2 to be less than our float value 1. To query our field values correctly, we need to create custom comparison operators that tell Postgres how we want the values to be ordered. 
+
+### Next up
+
+We're going to get into some nitty gritty Postgres details to tell Postgres how to work with our user defined type, field_value.
+

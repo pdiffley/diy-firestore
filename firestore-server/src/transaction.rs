@@ -1,4 +1,5 @@
 use postgres::Transaction;
+
 use crate::composite_query::CompositeFieldGroup;
 use crate::protos::document_protos::Document;
 use crate::security_rules::UserId;
@@ -11,7 +12,8 @@ pub struct TransactionOperationValue {
 }
 
 pub enum TransactionOperation {
-  Write, Delete,
+  Write,
+  Delete,
 }
 
 pub fn commit_transaction(sql_transaction: &mut Transaction, user_id: &UserId, read_documents: &[Document], write_operations: &[TransactionOperationValue]) -> bool {
@@ -45,12 +47,12 @@ fn document_has_changed(transaction: &mut Transaction, document: &Document) -> b
   return if let Some(update_id) = update_id {
     transaction.query(
       "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3 and update_id=$4",
-      &[&collection_parent_path, &collection_id, &document_id, &update_id]
+      &[&collection_parent_path, &collection_id, &document_id, &update_id],
     ).unwrap().len() == 0
   } else {
     transaction.query(
       "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3",
-      &[&collection_parent_path, &collection_id, &document_id]
+      &[&collection_parent_path, &collection_id, &document_id],
     ).unwrap().len() == 0
-  }
+  };
 }

@@ -1,11 +1,12 @@
-use std::time::{Duration, SystemTime};
-use postgres::Client;
 use std::thread::sleep;
+use std::time::{Duration, SystemTime};
+
+use postgres::Client;
 
 const LONG_POLL_TIME_SECONDS: u64 = 20;
 
+// TODO: have I written the code to update the client when a subscription expires?
 pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
-
   record_client_ping(sql_client, user_client_id);
 
   // Todo: on message queue notification:

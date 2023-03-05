@@ -1,17 +1,16 @@
 syntax = "proto3";
 package protos.documents;
 
+message DocumentId {
+  string collection_parent_path = 1;
+  string collection_id = 2;
+  string document_id = 3;
+}
 
 message Document {
   DocumentId id = 1;
   map<string, FieldValue> fields = 2;
   optional string update_id = 3;
-}
-
-message DocumentId {
-    string collection_parent_path = 1;
-    string collection_id = 2;
-    string document_id = 3;
 }
 
 message FieldValue {

@@ -1,0 +1,158 @@
+
+
+# DIY Firestore
+
+## Queries: Take Two
+
+In the last two sections, we made a user define composite type, field_value, that can hold any of our document data types, and we created a custom operator class for that type so that Postgres can correctly sort and index those values. With our custom type in hand, we can provide support for querying our documents.
+
+## Simple Queries
+
+We'll start by creating the lookup table from <first query section> 
+
+```postgresql
+CREATE TABLE simple_query_subscriptions (
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  field_name                  TEXT,
+  field_operator              TEXT,
+  field_value                 field_value,
+  subscription_id             TEXT
+);
+```
+
+We will support queries on collections and collection groups with the following indexes. 
+
+```postgresql
+CREATE INDEX simple_query_collection_subscription_idx ON 
+simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
+```
+
+Then we can efficiently query a collection or collection group for a particular field and operator 
+
+```rust
+pub fn simple_query(
+  transaction: &mut Transaction,
+  collection_parent_path: &Option<String>,
+  collection_id: &str,
+  field_name: &str,
+  field_operator: &str,
+  field_value: &field_value,
+) -> Vec<Document> {
+  let query_result;
+  if let Some(collection_parent_path) = collection_parent_path {
+    let query_string = format!(
+      "SELECT collection_parent_path, collection_id, document_id 
+      from simple_query_lookup 
+      where collection_parent_path = $1 and collection_id = $2 and 
+      field_name = $3 and field_value {} $4", field_operator);
+    query_result = transaction.query(
+      &query_string,
+      &[&collection_parent_path, &collection_id, &field_name, &field_value])
+  } else {
+    let query_string = format!(
+      "SELECT collection_parent_path, collection_id, document_id 
+      from simple_query_lookup 
+      where collection_id = $1 and field_name = $2 
+      and field_value {} $3", field_operator);
+    query_result = transaction.query(
+      &query_string,
+      &[&collection_id, &field_name, &field_value])
+  }
+
+  query_result.unwrap().into_iter()
+    .map(|row| get_document_from_row_id(transaction, row))
+    .collect()
+}
+```
+
+### Updating the simple query table
+
+Of course our lookup table won't do us any good if it is not in sync with the documents in our database.
+
+We'll make a function to add a document's fields to the lookup table when we create a document.
+
+```rust
+fn add_document_to_simple_query_table(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  document: &Document,
+)
+{
+  for (field_name, field_value) in document.fields.iter() {
+    let field_value = field_value_proto_to_sql(&field_value);
+    transaction.execute(
+      "insert into simple_query_lookup values ($1, $2, $3, $4, $5)",
+      &[&collection_parent_path, &collection_id, &document_id, &field_name, &field_value]).unwrap();
+  }
+}
+```
+
+Then we'll add it to our add document function so that whenever we insert a new document to postgres, we also update the fields in 
+
+```rust
+fn create_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  update_id: &str,
+  document: &Document,
+) {
+  let mut encoded_document: Vec<u8> = vec![];
+  document.encode(&mut encoded_document).unwrap();
+
+  add_document_to_documents_table(transaction, collection_parent_path, collection_id, document_id, update_id, &encoded_document);
+  add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
+
+  let mut matching_subscriptions = vec![];
+  matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+
+  // Todo: send update to matching subscriptions
+}
+```
+
+And we'll do the same thing for when we delete a document
+
+```rust
+fn delete_document_from_simple_query_table(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+)
+{
+  transaction.execute(
+    "delete from simple_query_lookup where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+    &[&collection_parent_path, &collection_id, &document_id]).unwrap();
+}
+
+```
+
+```rust
+pub fn delete_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+) {
+  if let Some(document) = get_document(transaction, user_id, collection_parent_path, collection_id, document_id) {
+    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
+
+    let mut matching_subscriptions = vec![];
+    matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+
+    // Todo: send update to matching subscriptions
+  }
+}
+```
+
+Now whenever we modify the documents in our database the lookup table will be updated too. Because we are doing all these modifications in a single transaction, we don't have to worry about the tables being temporarily out of sync.
+
+### Next Up
+
+Now that we can support simple queries over our collections, we will add support for subscriptions to those queries. 
+

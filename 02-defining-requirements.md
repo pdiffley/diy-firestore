@@ -195,7 +195,7 @@ We will just say that we have json config file that we deploy with the database 
 ]
 ```
 
-
+<Todo: Remove ASC/DESC support for now, indicate that we will only allow inequalities on the first field>
 
 ### Subscriptions
 

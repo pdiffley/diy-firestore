@@ -1,3 +1,33 @@
+use std::collections::{HashMap, HashSet};
+use std::env;
+use std::error::Error;
+use std::fmt;
+use std::process::Command;
+
+use bytes::{Bytes, BytesMut};
+use itertools::Itertools;
+use postgres::{Client, IsolationLevel, NoTls, Row, Transaction};
+use postgres::types::{ToSql, Type};
+use prost::Message;
+use stopwatch::Stopwatch;
+use uuid::Uuid;
+
+use protos::document_protos::Document;
+use protos::document_protos::DocumentId;
+use protos::document_protos::field_value::Value;
+use protos::document_protos::field_value::Value::IntegerValue;
+use protos::document_protos::field_value::Value::StringValue;
+use protos::document_protos::FieldValue;
+use sql_types::field_value;
+
+use crate::basic_read::{get_document, get_documents, get_documents_from_collection_group, subscribe_to_collection, subscribe_to_collection_group, subscribe_to_document};
+use crate::composite_query::{composite_query, CompositeFieldGroup, CompositeFieldGroupType, QueryParameter, subscribe_to_composite_query};
+use crate::security_rules::UserId;
+use crate::simple_query::simple_query;
+use crate::simple_query::subscribe_to_simple_query;
+use crate::sql_types::Unit;
+use crate::write::{delete_document, write_document};
+
 pub mod protos;
 mod sql_types;
 mod basic_read;
@@ -9,44 +39,17 @@ mod security_rules;
 mod update_queue;
 mod client_connection_endpoint;
 mod transaction;
-
-use std::collections::{HashMap, HashSet};
-use prost::Message;
-use postgres::{Client, IsolationLevel, NoTls, Row, Transaction};
-use postgres::types::{ToSql, Type};
-use std::error::Error;
-use std::env;
-use std::fmt;
-use bytes::{Bytes, BytesMut};
-
-use itertools::Itertools;
-
-use protos::document_protos::Document;
-use protos::document_protos::DocumentId;
-use protos::document_protos::FieldValue;
-use protos::document_protos::field_value::Value;
-use protos::document_protos::field_value::Value::StringValue;
-use protos::document_protos::field_value::Value::IntegerValue;
-use sql_types::{field_value};
+mod post;
 
 // create an alias for a Result that can contain any error
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
-use stopwatch::{Stopwatch};
-use std::process::Command;
-use uuid::Uuid;
-use crate::basic_read::{get_document, get_documents, get_documents_from_collection_group, subscribe_to_collection, subscribe_to_collection_group, subscribe_to_document};
-use crate::composite_query::{composite_query, CompositeFieldGroup, CompositeFieldGroupType, QueryParameter, subscribe_to_composite_query};
-use crate::security_rules::UserId;
-use crate::simple_query::subscribe_to_simple_query;
-use crate::simple_query::simple_query;
-use crate::sql_types::Unit;
-use crate::write::{delete_document, write_document};
 
 fn main() -> Result<()> {
-
   println!("{:?}", (((i64::MAX - 1) as f64) as i64) == i64::MAX - 1);
   println!("{:?}", ((f64::MAX) as i64) as f64);
   println!("{:?}", ((f64::MAX) as i64) == i64::MAX);
+  println!("{:?}", ((f64::NAN) as i64));
+  println!("{:?}", ((f64::INFINITY) as i64));
   println!("{:?}", ((f64::MAX - 123.5) as i64) == i64::MAX);
   println!("{:?}", ((f64::MIN + 16.1) as i64) == i64::MIN);
   println!("{:?}", ((i64::MIN as f64) as i64) == i64::MIN);
@@ -69,7 +72,7 @@ fn mainish() {
   let user_doc_id_1 = DocumentId {
     collection_parent_path: "/".to_string(),
     collection_id: "users".to_string(),
-    document_id: "mwEPmPPTrzoefwX".to_string()
+    document_id: "mwEPmPPTrzoefwX".to_string(),
   };
 
   let client_id = Uuid::new_v4().as_simple().to_string();
@@ -81,7 +84,7 @@ fn mainish() {
     &user_id,
     &user_doc_id_1.collection_parent_path,
     &user_doc_id_1.collection_id,
-    &user_doc_id_1.document_id
+    &user_doc_id_1.document_id,
   );
 
   let collection_subscription_id = subscribe_to_collection(
@@ -96,7 +99,7 @@ fn mainish() {
     &mut transaction,
     &client_id,
     &user_id,
-    "posts"
+    "posts",
   );
 
 
@@ -110,7 +113,7 @@ fn mainish() {
     &user_doc_id_1.collection_id,
     "age",
     "=",
-    &age_field_value_25
+    &age_field_value_25,
   );
 
   let mut name_field_value = field_value::default();
@@ -123,7 +126,7 @@ fn mainish() {
     &user_doc_id_1.collection_id,
     "name",
     "=",
-    &name_field_value
+    &name_field_value,
   );
 
   let mut age_field_value_130 = field_value::default();
@@ -138,7 +141,6 @@ fn mainish() {
   let composite_field_group = CompositeFieldGroup {
     collection_parent_path: Some("/".to_string()),
     collection_id: "users".to_string(),
-    group_type: CompositeFieldGroupType::Collection,
     group_id: "d8b8c614b73546daa1d85531dc412ef6".to_string(),
     primary_field_name: "age".to_string(),
     sorted_secondary_field_names: vec!["city".to_string(), "name".to_string(), "zipcode".to_string()],
@@ -181,7 +183,7 @@ fn mainish() {
     &client_id,
     &user_id,
     &parameters,
-    &composite_field_group
+    &composite_field_group,
   );
 
   let mut user_1 = Document {
@@ -191,7 +193,7 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(25)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let mut user_doc_id_2 = user_doc_id_1.clone();
@@ -203,7 +205,7 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(24)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let mut user_doc_id_3 = user_doc_id_1.clone();
@@ -215,7 +217,7 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(25)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let mut user_doc_id_4 = user_doc_id_1.clone();
@@ -227,7 +229,7 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(26)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let mut user_doc_id_5 = user_doc_id_1.clone();
@@ -239,7 +241,7 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(130)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let mut user_doc_id_6 = user_doc_id_1.clone();
@@ -251,31 +253,31 @@ fn mainish() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(34)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let post_id_doc_1 = DocumentId {
     collection_parent_path: "/users/AAA/".to_string(),
     collection_id: "posts".to_string(),
-    document_id: "111".to_string()
+    document_id: "111".to_string(),
   };
   let post_1 = Document {
     id: Some(post_id_doc_1.clone()),
     fields: HashMap::from([
       ("message".to_string(), FieldValue { value: Some(StringValue("Hi".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   let post_id_doc_2 = DocumentId {
     collection_parent_path: "/users/EEE/".to_string(),
     collection_id: "posts".to_string(),
-    document_id: "222".to_string()
+    document_id: "222".to_string(),
   };
   let post_2 = Document {
     id: Some(post_id_doc_2.clone()),
     fields: HashMap::from([
       ("message".to_string(), FieldValue { value: Some(StringValue("Hi Back".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
 
@@ -335,7 +337,7 @@ fn mainish() {
     &user_doc_id_1.collection_id,
     "age",
     ">",
-    &age_field_value_30
+    &age_field_value_30,
   );
   for doc in simple_query_age_result {
     println!("{:?}", doc);
@@ -351,7 +353,7 @@ fn mainish() {
     &user_doc_id_1.collection_id,
     "name",
     "=",
-    &name_field_value_avery
+    &name_field_value_avery,
   );
   for doc in simple_query_name_result {
     println!("{:?}", doc);
@@ -363,13 +365,12 @@ fn mainish() {
     &mut transaction,
     &user_id,
     &parameters,
-    &composite_field_group
+    &composite_field_group,
   );
   for doc in composite_query_result {
     println!("{:?}", doc);
   }
   println!();
-
 
 
   transaction.commit().unwrap();
@@ -383,14 +384,6 @@ fn mainish() {
   // Composite query
   // Confirm indexes are being used by entering sql queries in terminal
 }
-
-
-
-
-
-
-
-
 
 
 fn basic_subscription() {
@@ -408,7 +401,7 @@ fn basic_subscription() {
   let user_doc_id_1 = DocumentId {
     collection_parent_path: "/".to_string(),
     collection_id: "users".to_string(),
-    document_id: "mwEPmPPTrzoefwX".to_string()
+    document_id: "mwEPmPPTrzoefwX".to_string(),
   };
 
   let client_id = Uuid::new_v4().as_simple().to_string();
@@ -420,7 +413,7 @@ fn basic_subscription() {
     &user_id,
     &user_doc_id_1.collection_parent_path,
     &user_doc_id_1.collection_id,
-    &user_doc_id_1.document_id
+    &user_doc_id_1.document_id,
   );
 
   let mut user_1 = Document {
@@ -430,7 +423,7 @@ fn basic_subscription() {
       ("age".to_string(), FieldValue { value: Some(IntegerValue(24)) }),
       ("city".to_string(), FieldValue { value: Some(StringValue("New York".to_string())) }),
       ("zipcode".to_string(), FieldValue { value: Some(StringValue("20390".to_string())) })]),
-    update_id: None
+    update_id: None,
   };
 
   write_document(&mut transaction, &user_id, user_1.clone(), &vec![]);
@@ -442,19 +435,6 @@ fn basic_subscription() {
   println!("{}", document_subscription_id);
   get_subscription_updates(&mut transaction, &document_subscription_id);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 fn setup_database() {
@@ -478,12 +458,11 @@ fn teardown_database() {
 }
 
 fn get_subscription_updates(transaction: &mut Transaction, subscription_id: &str) {
-
   let update_docs: Vec<(String, Option<Vec<u8>>)> = transaction.query(
     "SELECT document_id, document_data
     from update_queues
     where subscription_id = $1",
-    &[&subscription_id]
+    &[&subscription_id],
   ).unwrap().into_iter().map(|x| (x.get(0), x.get(1))).collect();
   // println!("{:?}", update_docs);
   for encoded_document in update_docs.iter() {
@@ -494,7 +473,6 @@ fn get_subscription_updates(transaction: &mut Transaction, subscription_id: &str
       println!("{:?}", encoded_document.0);
     }
   }
-
 }
 
 

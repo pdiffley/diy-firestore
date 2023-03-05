@@ -1,32 +1,33 @@
 CREATE TABLE composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6 (
-  collection_parent_path      text,
-  collection_id               text,
-  document_id                 text,
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
   age                         field_value,
   city                        field_value,
-  name                        field_value,
-  zipcode                     field_value
+  user_name                   field_value,
+  zipcode                     field_value,
+  PRIMARY KEY (collection_parent_path, collection_id, document_id)
 );
 
-create index composite_lookup_table_idx_d8b8c614b73546daa1d85531dc412ef6 
-on composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6(age, city, name, zipcode);
+CREATE INDEX composite_lookup_table_idx_d8b8c614b73546daa1d85531dc412ef6 
+ON composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6(age, city, user_name, zipcode);
 
-create table composite_included_table_d8b8c614b73546daa1d85531dc412ef6(
-  subscription_id   text,
+CREATE TABLE composite_included_table_d8b8c614b73546daa1d85531dc412ef6(
+  subscription_id   TEXT,
   min_age           field_value,
   max_age           field_value,
   city              field_value,
-  name              field_value,
+  user_name         field_value,
   zipcode           field_value
 );
 
-create index composite_included_table_idx_d8b8c614b73546daa1d85531dc412ef6
-on composite_included_table_d8b8c614b73546daa1d85531dc412ef6(min_age, max_age, name, city, zipcode);
+CREATE INDEX composite_included_table_idx_d8b8c614b73546daa1d85531dc412ef6
+ON composite_included_table_d8b8c614b73546daa1d85531dc412ef6(min_age, max_age, user_name, city, zipcode);
 
-create table composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6 (
-  subscription_id   text,
+CREATE TABLE composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6 (
+  subscription_id   TEXT,
   excluded_age       field_value
 );
 
-create index composite_excluded_table_idx_d8b8c614b73546daa1d85531dc412ef6 on 
-composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6(excluded_age); 
+CREATE INDEX composite_excluded_table_idx_d8b8c614b73546daa1d85531dc412ef6 
+ON composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6(excluded_age); 

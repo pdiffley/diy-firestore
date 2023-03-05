@@ -1,29 +1,29 @@
 use std::collections::{HashMap, HashSet};
-use prost::Message;
+use std::env;
+use std::error::Error;
+use std::fmt;
+
+use bytes::{Bytes, BytesMut};
+use itertools::Itertools;
 use postgres::{Client, NoTls, Row, Transaction};
 use postgres::types::{ToSql, Type};
-use std::error::Error;
-use std::env;
-use std::fmt;
-use bytes::{Bytes, BytesMut};
+use prost::Message;
 use uuid::Uuid;
 
-use itertools::Itertools;
-
 use crate::protos::document_protos::Document;
-use crate::protos::document_protos::FieldValue;
 use crate::protos::document_protos::field_value::Value;
+use crate::protos::document_protos::FieldValue;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
-use crate::sql_types::{field_value};
+use crate::sql_types::field_value;
 
 pub fn get_document(
-  transaction: &mut Transaction, 
-  user_id: &UserId, 
-  collection_parent_path: &str, 
-  collection_id: &str, 
-  document_id: &str) 
-  -> Option<Document> 
+  transaction: &mut Transaction,
+  user_id: &UserId,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str)
+  -> Option<Document>
 {
   // security check
   if let User(user_id) = user_id {
@@ -36,11 +36,11 @@ pub fn get_document(
     "SELECT document_data 
     from documents 
     where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
-    &[&collection_parent_path, &collection_id, &document_id]
+    &[&collection_parent_path, &collection_id, &document_id],
   ).unwrap();
 
   if rows.len() == 0 {
-    return None
+    return None;
   }
 
   let encoded_document: Vec<u8> = rows[0].get(0);
@@ -64,8 +64,8 @@ pub fn get_documents(
   }
 
   let document_ids: Vec<String> = transaction.query(
-  "select document_id from documents where collection_parent_path = $1 and collection_id = $2",
-  &[&collection_parent_path, &collection_id]).unwrap().into_iter()
+    "select document_id from documents where collection_parent_path = $1 and collection_id = $2",
+    &[&collection_parent_path, &collection_id]).unwrap().into_iter()
     .map(|row| row.get(0))
     .collect();
 
@@ -90,7 +90,7 @@ pub fn get_documents_from_collection_group(
 
   let document_id_rows: Vec<_> = transaction.query(
     "select collection_parent_path, document_id from documents where collection_id = $1",
-    &[&collection_id]
+    &[&collection_id],
   ).unwrap();
 
   let documents: Vec<Document> = document_id_rows.iter()
@@ -107,19 +107,19 @@ pub fn get_matching_basic_subscription_ids(
 ) -> Vec<String> {
   let document_subscriptions: Vec<String> = transaction.query(
     "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
-    &[&collection_parent_path, &collection_id, &document_id]
+    &[&collection_parent_path, &collection_id, &document_id],
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
   let collection_subscriptions: Vec<String> = transaction.query(
     "SELECT subscription_id from basic_subscriptions where collection_parent_path=$1 and collection_id=$2 and document_id IS NULL",
-    &[&collection_parent_path, &collection_id]
+    &[&collection_parent_path, &collection_id],
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
   let collection_group_subscriptions: Vec<String> = transaction.query(
     "SELECT subscription_id from basic_subscriptions where collection_parent_path IS NULL and collection_id=$1 and document_id IS NULL",
-    &[&collection_id]
+    &[&collection_id],
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
 
@@ -138,7 +138,7 @@ pub fn subscribe_to_document(
   user_id: &UserId,
   collection_parent_path: &str,
   collection_id: &str,
-  document_id: &str
+  document_id: &str,
 ) -> String
 {
   if let User(user_id) = user_id {

@@ -1,76 +1,68 @@
 
-CREATE TABLE test_table (
-  myvar  int8
-);
-create index testindex1 on test_table(myvar);
-
-CREATE TABLE field_test_table(
-  myvar   field_value
-);
-create index field_testindex1 on field_test_table(myvar);
-
 CREATE TABLE documents (
-  collection_parent_path      text,
-  collection_id               text,
-  document_id                 text,
-  document_data               bytea,
-  update_id                   text
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  document_data               BYTEA,
+  update_id                   TEXT,
+  PRIMARY KEY (collection_parent_path, collection_id, document_id)
 );
 
-create index collection_id_collection_parent_path_index 
-on documents(collection_id, collection_parent_path, document_id, update_id);
+CREATE INDEX collection_id_collection_parent_path_idx
+ON documents(collection_id, collection_parent_path, document_id, update_id);
 
 CREATE TABLE basic_subscriptions (
-  collection_parent_path      text,
-  collection_id               text,
-  document_id                 text,
-  subscription_id             text
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  subscription_id             TEXT
+  PRIMARY KEY (subscription_id)
 );
 
-create index basic_subscriptions_idx 
-on basic_subscriptions(collection_parent_path, collection_id, document_id);
+CREATE INDEX basic_subscriptions_idx 
+ON basic_subscriptions(collection_parent_path, collection_id, document_id);
 
 CREATE TABLE simple_query_lookup (
-  collection_parent_path      text,
-  collection_id               text,
-  document_id                 text,
-  field_name                  text,
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  field_name                  TEXT,
   field_value                 field_value,
-  primary key (collection_parent_path, collection_id, document_id, field_name)
+  PRIMARY KEY (collection_parent_path, collection_id, document_id, field_name)
 );
 
-create index simple_query_idx on simple_query_lookup(collection_id, field_name, field_value, collection_parent_path);
-create index simple_query_deletion_idx on simple_query_lookup(collection_parent_path, collection_id, document_id);
-
-CREATE TABLE client_subscriptions (
-  subscription_id     text,
-  client_id           text
-);
-
-create index client_subscriptions_subscription_id_idx on client_subscriptions(subscription_id);
-create index client_subscriptions_client_id_idx on client_subscriptions(client_id);
+CREATE INDEX simple_query_idx ON simple_query_lookup(collection_id, field_name, field_value, collection_parent_path);
+CREATE INDEX simple_query_deletion_idx ON simple_query_lookup(collection_parent_path, collection_id, document_id);
 
 CREATE TABLE simple_query_subscriptions (
-  collection_parent_path      text,
-  collection_id               text,
-  field_name                  text,
-  field_operator              text,
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  field_name                  TEXT,
+  field_operator              TEXT,
   field_value                 field_value,
-  subscription_id             text
+  subscription_id             TEXT,
+  PRIMARY KEY (subscription_id)
 );
 
-create index simple_query_subscription_idx on 
-simple_query_subscriptions(collection_parent_path, collection_id, field_name, field_operator, field_value);
+CREATE INDEX simple_query_collection_subscription_idx ON 
+simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
 
+CREATE TABLE client_subscriptions (
+  subscription_id     TEXT,
+  client_id           TEXT
+);
+
+CREATE INDEX client_subscriptions_subscription_id_idx ON client_subscriptions(subscription_id);
+CREATE INDEX client_subscriptions_client_id_idx ON client_subscriptions(client_id);
 
 CREATE TABLE update_queues (
-  subscription_id             text,
-  collection_parent_path      text,
-  collection_id               text,
-  document_id                 text,
-  document_data               bytea,
-  update_id                   text
+  subscription_id             TEXT,
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  document_data               BYTEA,
+  update_id                   TEXT
 );
 
-create index update_queues_subscription_id_idx on update_queues(subscription_id);
-create index update_queues_update_id_idx on update_queues(update_id);
+CREATE INDEX update_queues_subscription_id_idx ON update_queues(subscription_id);
+CREATE INDEX update_queues_update_id_idx ON update_queues(update_id);
