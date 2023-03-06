@@ -1,3 +1,45 @@
+### Security Rules
+
+<Intro>
+
+
+
+We are going to hopscotch over security rules a bit. Firestore allows a user to provide a configuration file that will take the information in a request and determine if the user is allowed to access the resources requested in it. For our purposes, we are just going to assume that we will take a similar configuration file. We will then provide a function that will be called whenever a relevant operation is performed
+
+```rust
+pub fn operation_is_allowed(user_id: &Option<String>, operation: &Operation, collection_parent_path: &Option<String>,
+                            collection_id: &str, document_id: &Option<String>) -> bool {
+  // Check if an operation is allowed
+}
+
+pub enum Operation {
+  Get,
+  List,
+  Create,
+  Update,
+  Delete,
+}
+
+pub enum UserId {
+  Admin,
+  User(Option<String>),
+}
+```
+
+This function will compare the request details against the rules specified in the security rules file. If the user is allowed to perform the operation the function will return true, and if not it will return false.
+
+We can go ahead and put these security rules into our read and write functions.
+
+```
+write function code
+```
+
+
+
+
+
+
+
 most basic verison of security rules is a function implemented with the rest of the code
 called whenever a document is read, written or listed
 args: doc id, operation type, document

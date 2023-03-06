@@ -48,4 +48,13 @@ SELECT * FROM ( VALUES
   AS test_table(field_value)
 ORDER BY field_value ASC;
 
+SELECT subscription_id 
+FROM composite_included_table_d8b8c614b73546daa1d85531dc412ef6 
+WHERE min_age <= <document.age> AND max_age >= <documnet.age> 
+AND city = <document.city> AND user_name = <document.user_name> AND zipcode = <document.zipcode>
 
+EXCEPT
+
+SELECT DISTINCT subscription_id 
+FROM composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6 
+WHERE excluded_age = <document.age>;

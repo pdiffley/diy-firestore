@@ -1,32 +1,107 @@
+### Subscription Updates
+
+So far we have written code that identifies what subscriptions need to be updated when a write is made to the database, but we have not specified how the subscriptions will be updated.
+
+A naive implemenation, would just notify the client of a subscription that a subscription was updated, and have it re-query the data. 
+
+That leads to some n^2 behavior though, rereading an entire collection everytime a document is added for example, and also introduces the possibility that a message would be dropped resulting in a subscription being out of date until the next write that affected it comes through.
+
+When write affects a subscription, we need a way to reliably send the subscriber only the changes that have been made without losing any state. We will create a "queue" (I use the term loosely) for each subscription a client has, when a subscription is affected by a write, the update will be written to the queue. The client can the retrieve all of the changes for its subscriptions from the update queue.
+
+We will put all of our queues into a table, update queues.
+
+```postgresql
+CREATE TABLE update_queues (
+  subscription_id             TEXT,
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  document_id                 TEXT,
+  document_data               BYTEA,
+  update_id                   TEXT
+);
 ```
-fjklsajfdlsa
+
+Each row in this table specifies a subscription and an updated document for the subscription. If the document was deleted, we will set document_data to NULL. The code add modified documents to the update queues is fairly straightforward
+
+```rust
+pub fn write_change_to_update_queues(
+  transaction: &mut Transaction,
+  matching_subscriptions: &[String],
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  update_id: &str,
+  document_data: &Option<Vec<u8>>)
+{
+  for subscription_id in matching_subscriptions {
+    transaction.execute(
+      "delete from update_queues where subscription_id = $1 and collection_parent_path = $2 and collection_id = $3 and document_id = $4",
+      &[&subscription_id, &collection_parent_path, &collection_id, &document_id],
+    ).unwrap();
+    transaction.execute(
+      "insert into update_queues values ($1, $2, $3, $4, $5, $6)",
+      &[&subscription_id, &collection_parent_path, &collection_id, &document_id, &document_data, &update_id]).unwrap();
+  }
+}
 ```
 
+For each subscription affected by the update, we delete the existing document from its update queue if there is one, then insert the new document. Now we just pop this function into our create and delete functions
+
+```rust
+fn create_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  update_id: &str,
+  document: &Document,
+  composite_groups: &[CompositeFieldGroup],
+) {
+  let mut encoded_document: Vec<u8> = vec![];
+  document.encode(&mut encoded_document).unwrap();
+
+  add_document_to_documents_table(transaction, collection_parent_path, collection_id, document_id, update_id, &encoded_document);
+  add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
+  add_document_to_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, document, composite_groups);
+
+  let mut matching_subscriptions = vec![];
+  matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+  matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
+  matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, document, composite_groups).into_iter());
+
+  write_change_to_update_queues(transaction, &matching_subscriptions, collection_parent_path, collection_id, document_id, update_id, &Some(encoded_document));
+}
+```
+
+```rust
+	pub fn delete_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  composite_groups: &[CompositeFieldGroup],
+) {
+  if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
+    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, composite_groups);
+
+    let mut matching_subscriptions = vec![];
+    matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+    matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
+    matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, &document, composite_groups).into_iter());
+
+    let update_id: String = Uuid::new_v4().as_simple().to_string();
+    write_change_to_update_queues(transaction, &matching_subscriptions, collection_parent_path, collection_id, document_id, &update_id, &None);
+  }
+}
+```
+
+Because our update queues are just another table in our postgres database we can update the queues in the same transaction that all other associated modifications are made it ensuring that we never drop any updates. When we deliver the update to the subscribing client, we just need to confirm that the client has received the update before removing items from the update queue. 
+
+### Next up
+
+We now have a table holding update queues for all of our subscriptions, but we still need to provide a way for the clients to reliably retrieve those updates. In the next section we will look at how we can reliably deliver these updates to the client.
 
 
-Now we can implement our actual client side updates.
 
-With a naive implemenation, we would just notify the client that a subscription was updated, and have it re-query the data. 
-
-That leads to some n^2 behavior though (rereading an entire collection everytime a document is added for example)
-
-Instead, when a subscription is updated, we want to only update the client with documents that have changed. 
-
-we will create a "queue" for each subscription a client has (all queues likely in one table, but tbd), when a subscription is affected by a write, the update will be written to the queue
-
-storing our update queues in the same database as all the rest of our data means we can update our subscription queues
-in the same transaction that a write is made in ensuring that we never drop any updates (we will confirm that the client has received the update before removing the item from the queue). At any point in time, the queue represents the latest state of the query, so it is ok if the client gets a redundant update (idempotent?)<rephrase to be less confusing>.
-
-we will also specify a ttl for a subscription, so that if a client has been disconnected for a certain threshold period of time, we no longer spend the resources to maintain updates to the subscription. 
-
-After the queue is updated we will also send a (pubsub, sqs, rabbitmq) message to the client connection server telling it to send the update to the client. This message is outside the transaction, but it is ok if it gets dropped occasionally since that server will have redundant checks on the update queue itself. 
-
-
-
-| client_id | subscription_id | collection_parent_path | collection_id | document_id | document_data | update_id |
-| --------- | --------------- | ---------------------- | ------------- | ----------- | ------------- | --------- |
-| Text      | Text            | Text                   | Text          | Text        | Bytes         | Text      |
-
-on subscription update insert row
-
-(document data is null if the document is deleted)

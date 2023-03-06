@@ -5,7 +5,6 @@ use postgres::Client;
 
 const LONG_POLL_TIME_SECONDS: u64 = 20;
 
-// TODO: have I written the code to update the client when a subscription expires?
 pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
   record_client_ping(sql_client, user_client_id);
 
@@ -74,6 +73,7 @@ pub fn confirm_updates(sql_client: &mut Client, user_client_id: &str, update_ids
      where U.subscription_id = C.subscription_id and C.client_id = $1 and U.update_id IN $2",
     &[&user_client_id, &update_ids]).unwrap();
 }
+
 
 
 

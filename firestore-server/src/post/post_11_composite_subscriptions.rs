@@ -8,57 +8,31 @@ use itertools::Itertools;
 use postgres::{Client, NoTls, Row, Transaction};
 use postgres::types::{ToSql, Type};
 use prost::Message;
+use sql_query_builder;
 use uuid::Uuid;
 use crate::post::post_04_initial_write_operations::{add_document_to_documents_table, delete_document_from_documents_table, get_document};
 use crate::post::post_05_basic_subscriptions::get_matching_basic_subscription_ids;
-use crate::post::post_08_simple_queries::{add_document_to_simple_query_table, delete_document_from_simple_query_table};
+use crate::post::post_08_simple_queries::add_document_to_simple_query_table;
+use crate::post::post_10_composite_queries::{add_document_to_composite_query_tables, CompositeFieldGroup, delete_document_from_composite_query_tables};
 
 use crate::protos::document_protos::Document;
 use crate::protos::document_protos::field_value::Value;
 use crate::protos::document_protos::FieldValue;
 use crate::security_rules::{Operation, operation_is_allowed, UserId};
 use crate::security_rules::UserId::User;
+use crate::simple_query::{delete_document_from_simple_query_table, get_matching_simple_query_subscriptions};
 use crate::sql_types::field_value;
-use crate::utils::{field_value_proto_to_sql, prepare_field_value_constraint};
+use crate::utils::{field_value_proto_to_sql, null_sql_field_value};
 
-
-pub fn get_matching_simple_query_subscriptions(
+pub fn get_matching_composite_query_subscriptions(
   transaction: &mut Transaction,
-  collection_parent_path: &str,
-  collection_id: &str,
-  document: &Document) -> Vec<String>
-{
-  let operator_pairs = vec![("<", ">"), ("<=", ">="), ("=", "="), ("!=", "!="), (">", "<"), (">=", "<=")];
-
-  let mut matching_subscriptions = vec![];
-  for (field_name, field_value) in document.fields.iter() {
-    let sql_field_value = field_value_proto_to_sql(field_value);
-    for operator_pair in &operator_pairs {
-      let collection_query = format!("select subscription_id from simple_query_subscriptions where collection_parent_path = $1 and collection_id = $2 and field_name = $3 and field_operator = $4 and field_value {} $5", operator_pair.1);
-      let collection_subscriptions = transaction.query(
-        &collection_query,
-        &[&collection_parent_path, &collection_id, &field_name, &operator_pair.0, &sql_field_value],
-      ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
-      matching_subscriptions.extend(collection_subscriptions);
-
-      let collection_group_query = format!("select subscription_id from simple_query_subscriptions where collection_parent_path IS NULL and collection_id = $1 and field_name = $2 and field_operator = $3 and field_value {} $4", operator_pair.1);
-      let collection_group_subscriptions = transaction.query(
-        &collection_group_query,
-        &[&collection_id, &field_name, &operator_pair.0, &sql_field_value],
-      ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
-      matching_subscriptions.extend(collection_group_subscriptions)
-    }
-  }
+  document: &Document,
+  composite_groups: &[CompositeFieldGroup],
+) -> Vec<String> {
+  let mut matching_subscriptions: Vec<String> = vec![];
+  // ...
   matching_subscriptions
 }
-
-
-
-// =================================================================================================
-// =================================================================================================
-// =================================================================================================
-
-
 
 fn create_document(
   transaction: &mut Transaction,
@@ -67,33 +41,40 @@ fn create_document(
   document_id: &str,
   update_id: &str,
   document: &Document,
+  composite_groups: &[CompositeFieldGroup],
 ) {
   let mut encoded_document: Vec<u8> = vec![];
   document.encode(&mut encoded_document).unwrap();
 
   add_document_to_documents_table(transaction, collection_parent_path, collection_id, document_id, update_id, &encoded_document);
   add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
+  add_document_to_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, document, composite_groups);
 
   let mut matching_subscriptions = vec![];
   matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
   matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
+  matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, document, composite_groups).into_iter());
 
   // Todo: send update to matching subscriptions
 }
+
 
 pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
   collection_id: &str,
   document_id: &str,
+  composite_groups: &[CompositeFieldGroup],
 ) {
   if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
     delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
     delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, composite_groups);
 
     let mut matching_subscriptions = vec![];
     matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
     matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
+    matching_subscriptions.extend(get_matching_composite_query_subscriptions(transaction, &document, composite_groups).into_iter());
 
     // Todo: send update to matching subscriptions
   }

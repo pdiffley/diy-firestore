@@ -1,17 +1,73 @@
-give documents an update_id (in document table)
+### Transactions
 
+Firestore allows us to perform optimistic client side transactions, ensuring that a set of writes only go through as a block or not at all.
 
+This isn't too difficult to support. The first thing to notice is that our document proto includes the `update_id` for a document. This mean that when our client reads a document it also receives the update id for that document. To allow client side transactions we just need to provide an endpoint that lets a client specify a set of writes to perform along with a list of documents and that need to have the same update_id as when the client read them in.
 
-only need one extra endpoint for optimistic transaction:
+We will create a struct to specify the details of a write operation
 
-Commit Transaction
-takes list of documents that should have no change (based on update_id) and the list of documents to write
-fails if any of the update ids have changed
+```rust
+pub struct TransactionOperationValue {
+  operation: TransactionOperation,
+  document: Document,
+  relevant_composite_groups: Vec<CompositeFieldGroup>,
+}
 
-Client is responsible for tracking previously read documents. 
+pub enum TransactionOperation {
+  Write,
+  Delete,
+}
+```
 
+Then we will provide a function that takes both a list of documents read in the transaction and the list of write operations the transaction will perform.
 
+```rust
+pub fn commit_transaction(sql_transaction: &mut Transaction, user_id: &UserId, read_documents: &[Document], write_operations: &[TransactionOperationValue]) -> bool {
+  for document in read_documents {
+    if document_has_changed(sql_transaction, document) {
+      return false;
+    }
+  }
 
-Show example of how this works client side.
+  for operation in write_operations {
+    match operation.operation {
+      TransactionOperation::Write => write_document(sql_transaction, user_id, operation.document.clone(), &operation.relevant_composite_groups),
+      TransactionOperation::Delete => {
+        let collection_parent_path = operation.document.id.clone().unwrap().collection_parent_path;
+        let collection_id = operation.document.id.clone().unwrap().collection_id;
+        let document_id = operation.document.id.clone().unwrap().document_id;
+        delete_document(sql_transaction, user_id, &collection_parent_path, &collection_id, &document_id, &operation.relevant_composite_groups)
+      }
+    }
+  }
 
-Point out requirement that reads happen before writes. 
+  true
+}
+
+fn document_has_changed(transaction: &mut Transaction, document: &Document) -> bool {
+  let collection_parent_path = document.id.clone().unwrap().collection_parent_path;
+  let collection_id = document.id.clone().unwrap().collection_id;
+  let document_id = document.id.clone().unwrap().document_id;
+  let update_id = document.update_id.clone();
+
+  return if let Some(update_id) = update_id {
+    transaction.query(
+      "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3 and update_id=$4",
+      &[&collection_parent_path, &collection_id, &document_id, &update_id],
+    ).unwrap().len() == 0
+  } else {
+    transaction.query(
+      "SELECT 1 FROM documents WHERE collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+      &[&collection_parent_path, &collection_id, &document_id],
+    ).unwrap().len() == 0
+  };
+}
+```
+
+If the `update_id` for one of the `read_documents` has changed, the transaction fails. Otherwise, we apply the set of write operations. It will be the responsibility of the client library to make keep track the documents read in a transaction. 
+
+Providing an update_id for our documents, allows us identify when the document retrieved by a client is out of date. The side affect of performing transactions this way is that our writes do not get sent to the database until after we have performed all of the reads in the transaction. 
+
+### Next up
+
+Now we are getting into the more distinguishing features of firestore. Next we'll provide support subscriptions to documents and collections.

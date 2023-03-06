@@ -2,7 +2,9 @@
 
 # Composite Queries
 
-Our approach to supporting composite queries will be different for than simple queries. If we tried support all possible composite queries, we would quickly run into a problem with combinatorial explosion. However, because we know the combinations of fields that need to be queried in advance, we can create tables and indexes built to support those queries specifically, and avoid that problem.
+Unlike simple queries, we will not support any possible query out of the box. If we tried support all possible composite queries, we would quickly run into a problem with combinatorial explosion. Instead, we will require the combination of fields that will be queried over to be specified in advance, and only the first field, the **primary field**, can be queried with inequality operators (<, <=, >, >=, !=). All other fields, the **secondary fields**, can only be filtered with the equality operator, =. 
+
+Because we know the combinations of fields that need to be queried in advance, we can create tables and indexes built to support those queries specifically.
 
 Let's look an example collection of user data `users` 
 
@@ -42,7 +44,7 @@ To support this query, we would first specify the composite field group in a con
 }
 ```
 
-Having the field group specified in advance allows us to make a lookup table specifically for it. We will assign the composite field group a unique id, "d8b8c614b73546daa1d85531dc412ef6", and create the lookup table composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6
+Since we have the field group specified in advance, we can make a lookup table specifically for it. We will assign the composite field group a unique id, "d8b8c614b73546daa1d85531dc412ef6", and create the lookup table composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6
 
 ```postgresql
 CREATE TABLE composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6 (
@@ -80,13 +82,12 @@ impl CompositeFieldGroup {
 }
 ```
 
-Knowing the composite group that a query maps to, it is fairly easy to query these documents. Note: Our composite queryies need to be generated dynamically so I havestarted using a simple query builder to help with this. 
+Each of these structs contains all of the information about a single field group and the tables affiliated with it.
+
+We can now make a function that will query a specific lookup table. I am making the assumption that we have already identified what field group the query belongs to. Our composite queries need to be generated dynamically so I have started using a simple query builder to help with this. 
 
 ```rust
-pub fn composite_query(
-  transaction: &mut Transaction,
-  parameters: &[QueryParameter],
-  composite_group: &CompositeFieldGroup) -> Vec<Document> {
+pub fn composite_query(transaction: &mut Transaction, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
@@ -103,7 +104,8 @@ pub fn composite_query(
   let documents: Vec<Document> = transaction.query(&query_string, &args[..])
     .unwrap()
     .into_iter()
-    .map(|row| get_document_from_row_id(transaction, row))
+    .map(|row| get_document(transaction, row.get("collection_parent_path"),
+                            row.get("collection_id"), row.get("document_id")).unwrap())
     .collect();
   documents
 }
@@ -116,87 +118,151 @@ pub struct QueryParameter {
 }
 ```
 
+Here we construct our query string, directing the query to the correct query table based on the **group_id** and adding all of the constraints from the query parameters. We then execute the query to get the document ids and retrieve those documents from the documents table.
 
+Next we will create functions to add or delete documents from a set of composite group's look up tables. These functions have to dynamically specify the query parameters for a particular table, so they get fairly complicated, but all they are doing is adding or deleting a row from the look up table for a composite field group.   
 
+```rust
+pub fn add_document_to_composite_query_tables(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  document: &Document,
+  composite_groups: &[CompositeFieldGroup],
+)
+{
+  for composite_field_group in composite_groups {
+    add_document_to_composite_query_table(transaction, collection_parent_path, collection_id, document_id, document, composite_field_group);
+  }
+}
 
+fn add_document_to_composite_query_table(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  document: &Document,
+  composite_field_group: &CompositeFieldGroup,
+) {
+  let (primary_value, secondary_values) = get_field_group_values(document, composite_field_group);
 
-=================================================================================
-< leave out auto generation code>
+  let table_name = format!("\"{}\"", composite_field_group.lookup_table_name());
+  let query_string = {
+    let mut query = sql_query_builder::Insert::new()
+      .insert_into(&table_name)
+      .values("($1, $2, $3, $4");
+    for i in 0..secondary_values.len() {
+      query = query.values(&format!("${}", i + 5));
+    }
+    query = query.raw_after(sql_query_builder::InsertClause::Values, ")");
+    query.as_string()
+  };
 
+  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&collection_parent_path, &collection_id, &document_id, &primary_value];
+  args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
 
-Let's take a look at a code sample which will do that?
+  transaction.execute(&query_string, &args).unwrap();
+}
 
-
+fn get_field_group_values(
+  document: &Document,
+  composite_field_group: &CompositeFieldGroup,
+) -> (field_value, Vec<field_value>) {
+  let primary_value = field_value_proto_to_sql(document.fields.get(&composite_field_group.primary_field_name).unwrap());
+  let mut secondary_values = vec![];
+  for field_name in &composite_field_group.sorted_secondary_field_names {
+    if let Some(value) = document.fields.get(field_name) {
+      secondary_values.push(field_value_proto_to_sql(value));
+    } else {
+      secondary_values.push(null_sql_field_value());
+    }
+  }
+  (primary_value, secondary_values)
+}
 ```
-Block of code showing index creation in rust
+
+```rust
+pub fn delete_document_from_composite_query_tables(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  composite_groups: &[CompositeFieldGroup],
+)
+{
+  for composite_field_group in composite_groups {
+    delete_document_from_composite_query_table(transaction, collection_parent_path, collection_id, document_id, composite_field_group)
+  }
+}
+
+fn delete_document_from_composite_query_table(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  composite_field_group: &CompositeFieldGroup,
+) {
+  let query_string: String =
+    format!("delete from \"{}\" where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+            composite_field_group.lookup_table_name());
+  transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
+}
 ```
-We will actually combine fields from the same collection into one table and the put individual indexes on it
-
-We can then write an arbitrary query on any set of indexed fields
-
-=================================================================================
 
 
 
-// on write
+We will then call those functions from our create and delete functions. We are going to lean a little further into the deus ex here and assume that we have already identified the set of composite groups affected by a write.
 
-  - check if collection or group has a composite field group
-  - if so write fields to table
-  
-  - need table of collection/group -> fields tracked
+```rust
+fn create_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  update_id: &str,
+  document: &Document,
+  composite_groups: &[CompositeFieldGroup],
+) {
+  let mut encoded_document: Vec<u8> = vec![];
+  document.encode(&mut encoded_document).unwrap();
 
+  add_document_to_documents_table(transaction, collection_parent_path, collection_id, document_id, update_id, &encoded_document);
+  add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
+  add_document_to_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, document, composite_groups);
 
+  let mut matching_subscriptions = vec![];
+  matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+  matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
 
-Going to do a little deus ex, and assume that we've already parsed our config file of collection groups to get a nicely formatted map.
+  // Todo: send update to matching subscriptions
+}
+```
 
+```rust
+pub fn delete_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  composite_groups: &[CompositeFieldGroup],
+) {
+  if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
+    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_composite_query_tables(transaction, collection_parent_path, collection_id, document_id, composite_groups);
 
+    let mut matching_subscriptions = vec![];
+    matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+    matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
 
-
-
-Subscriptions
-
-Btree index approach, table set up:
-
-"collection_composite_subscription_table_included/users/age/name/city/zipcode"
-
-| subscription_id | min_age    | max_age    | name       | city       | zipcode    |
-| --------------- | ---------- | ---------- | ---------- | ---------- | ---------- |
-| Text            | FieldValue | FieldValue | FieldValue | FieldValue | FieldValue |
-
-
-"collection_composite_subscription_table_excluded/users/age/name/city/zipcode"
-
-| subscription_id | excluded_age |
-| --------------- | ------------ |
-| Text            | FieldValue   |
-
-
-For write
-
-- map from collection and collection group to all affected composite groups
-
-For query and subscription
-
-- map from collection/field names combination to specific composite group
-
-
-Better method with gin index
-
-| subscription_id | min_age    | max_age    | excluded_ages | name       | city       | zipcode    |
-| --------------- | ---------- | ---------- | ------------- | ---------- | ---------- | ---------- |
-| Text            | FieldValue | FieldValue | FieldValue[]  | FieldValue | FieldValue | FieldValue |
-
-Requires implementing gin index operator class for FieldValue. Will cover in next part of the series
-which includes array and map data types
-
-<tbd: write code for both multi table b-tree approach and single table gin approach or just gin approach?>
+    // Todo: send update to matching subscriptions
+  }
+}
+```
 
 
 
-// Todo: use uuid for composite group id 
 
-make table with
 
-collection_parent_path, collection_id, primary_field_name, secondary_field_names[], composite_group_id
 
-// Todo: update requirements chapter to ignore ASC/DESC right now
