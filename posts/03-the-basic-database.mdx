@@ -48,7 +48,7 @@ To store our documents in the document_data column, we need a way to get a
 binary representation of our document. Protobuf's is a convenient way to do
 this. We will define a document proto to have a document id and a map of fields.
 
-```
+```proto
 syntax = "proto3";
 package protos.documents;
 
@@ -71,7 +71,7 @@ the possible value our documents support. Protobuf's "oneof" feature
 conveniently allows us to indicate that any given FieldValue will only contain
 one of these types.
 
-```
+```proto
 message FieldValue {
   oneof value {
     Unit null_value = 1;
