@@ -14,7 +14,9 @@ support.
 The first thing we will do is create a table to hold our our schemaless
 documents,
 
-```postgresql
+<CH.Code>
+
+```sql create_documents.sql
 CREATE TABLE documents (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -25,6 +27,8 @@ CREATE TABLE documents (
 );
 ```
 
+</CH.Code>
+
 Each row in the `documents` table holds the unique identifiers for a document,
 `collection_parent_path`, `collection_id`, and `document_id`, as well as a blob
 holding the document data itself. We also included a column `update_id` which
@@ -33,7 +37,7 @@ we'll make use of later.
 So that we can retrieve documents from the table based on their identifiers, we
 will create the index
 
-```postgresql
+```sql
 CREATE INDEX collection_id_collection_parent_path_idx
 ON documents(collection_id, collection_parent_path, document_id, update_id);
 ```
@@ -44,7 +48,7 @@ To store our documents in the document_data column, we need a way to get a
 binary representation of our document. Protobuf's is a convenient way to do
 this. We will define a document proto to have a document id and a map of fields.
 
-```protobuf
+```
 syntax = "proto3";
 package protos.documents;
 
@@ -67,7 +71,7 @@ the possible value our documents support. Protobuf's "oneof" feature
 conveniently allows us to indicate that any given FieldValue will only contain
 one of these types.
 
-```protobuf
+```
 message FieldValue {
   oneof value {
     Unit null_value = 1;
