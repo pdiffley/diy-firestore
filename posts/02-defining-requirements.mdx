@@ -7,9 +7,9 @@ make a database we could easily migrate to from Firestore). The sections below
 give a lightning round description of the features we will be implementing, and
 specify some **_key terms_** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
-to skim or skip to the <Summary> at the bottom. Alternatively, if you have no
-idea how Firestore works at all, it could be helpful to read the <Firestore's
-docs> which explain Firestore's features in more detail.
+to skim or skip to the Summary at the bottom. Alternatively, if you have no idea
+how Firestore works at all, it could be helpful to read the {/_Firestore's
+docs_/} which explain Firestore's features in more detail.
 
 ### Data Organization
 
@@ -22,28 +22,26 @@ collection with its own string identifier, **_collection_id_**. Consider the
 chat room example from the
 [Firestore documentation](https://firebase.google.com/docs/firestore/data-model#hierarchical-data).
 
-<img
-  src="/Users/pd/diy-firestore/images/collection-dark.png"
-  alt="drawing"
-  width="30"
-/> rooms
+<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> rooms
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 roomA
 
 ​ `name : 'Chat Room A'`
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 roomB
 
 ​ `name : 'Chat Room B'`
 
-We have a collection with a collection_id "rooms". It holds multiple documents
+We have a collection with a collection*id "rooms". It holds multiple documents
 which each represent a chat room. The two documents shown have doc_ids "roomA"
-and "roomB". Each of our chat room documents have a **_field_** with the
-**_key_** "name" and a string **_value_** holding the chat room's descriptive
+and "roomB". Each of our chat room documents have a \*\*\_field*** with the
+**_key_** "name" and a string **_value_\*\* holding the chat room's descriptive
 name.
 
 ##### Subcollections
@@ -51,52 +49,61 @@ name.
 Our documents can also have subcollections. In this case, we will give each chat
 room a subcollection, "messages".
 
-<img
-  src="/Users/pd/diy-firestore/images/collection-dark.png"
+<Image
+  src="/images/collection-dark.png"
   alt="drawing"
+  height="30"
   width="30"
 /> rooms
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 roomA
 
 ​ `name : 'Chat Room A'`
 
 ​
-<img src="/Users/pd/diy-firestore/images/collection-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" />
 messages
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 message1
 
 ​ `from : 'alex'` ​ `message : 'Hello World!'` ​ `messageCount: 0`
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 message2
 
 ​ `from : 'mary'` ​ `message : 'Hello Worlds!'` ​ `messageCount: 1`
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 roomB
 
 ​ `name : 'Chat Room B'`
 
 ​
-<img src="/Users/pd/diy-firestore/images/collection-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" />
 messages
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 message1
 
 ​ `from : 'jeff'` ​ `message : 'Lorem'` ​ `messageCount: 0`
 
 ​
-<img src="/Users/pd/diy-firestore/images/document-dark.png" alt="drawing" width="30"/>
+
+<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
 message2
 
 ​ `from : 'alex'` ​ `message : 'Ipsum'` ​ `messageCount: 1`
@@ -151,7 +158,8 @@ Because documents can have values with different types for the same field key,
 we need a consistent way to compare field values with different types. For this
 purpose the different types will be ordered based on their position in the list
 above (ie. a null type is always less than a boolean type which is always less
-than an integer and so on). <insert interleaving of integer and float types>
+than an integer and so on).
+{/* insert interleaving of integer and float types */}
 
 I will be writing client side code samples in Typescript and backend code
 samples in Rust. It is worth noting that because numbers in Typescript are
@@ -160,15 +168,16 @@ the language does not natively support full 64 bit integers, but because all of
 our backend code will be in in Rust, we could still support 64 bit integers in
 other client side languages.
 
-<Todo: Note that in a production app we might want to integrate the rust code
+{/_Todo: Note that in a production app we might want to integrate the rust code
 into database functions through a c interface to avoid making multiple round
-trips between our server and database>
+trips between our server and database_/}
 
 ### Queries
 
-Following Firestore's terminolgy <add link>, we will classify queries as either
-**_simple_** or **_compound_** and will allow queries on **_collections_** as
-well as **_collection groups_**. <specify composite field groups term>
+Following Firestore's terminolgy {/* add link */}, we will classify queries as
+either **_simple_** or **_compound_** and will allow queries on
+**_collections_** as well as **_collection groups_**.
+{/* specify composite field groups term */}
 
 ##### Simple Queries
 
@@ -180,9 +189,9 @@ we could write the query,
 query("rooms/roomA/messages", where("from", "=", "alex"));
 ```
 
-We will support simple queries on all document fields for the operators <,
-<=, >, >=, ==, and != without advanced notice that the query will be made (ie.
-without the need to make a new index for a new query).
+We will support simple queries on all document fields for the operators `<`,
+`<=`, `>`, `>=`, `==`, and `!=` without advanced notice that the query will be
+made (ie. without the need to make a new index for a new query).
 
 ##### Collection Groups
 
@@ -214,8 +223,9 @@ query(
 Compound queries have some restrictions though. First, we will require that
 fields used in a compound query be specified in advance in a **_composite field
 group_** (see the next section for details). Second, only one field in the query
-can have a non-equality operator (<, <=, >, >=, !=) placed on it. All other
-fields can only be constrained by the equality operator. For example, the query
+can have a non-equality operator (`<`, `<=`, `>`, `>=`, `!=`) placed on it. All
+other fields can only be constrained by the equality operator. For example, the
+query
 
 ```typescript
 query(
@@ -226,14 +236,14 @@ query(
 ```
 
 would not be allowed. But why would you want to exclude Alex anyway? I'll talk
-some more in the <additional features section> about how we might modify our
-database to allow for more complex queries.
+some more in the {/* additional features section */} about how we might modify
+our database to allow for more complex queries.
 
 ##### Composite Field Groups
 
 For the above query we would specify the composite fields
 
-```
+```typescript
 {
   collectionId: "messages",
   groupType: "COLLECTION",
@@ -248,7 +258,7 @@ the fields "from" and "messageCount" in a single query.
 Alternatively, if we wanted to run the compound query on the collection group
 "messages" we would specify
 
-```
+```typescript
 {
   collectionId: "messages",
   groupType: "COLLECTION_GROUP",
@@ -265,7 +275,7 @@ database, we would want to be able to update this config dynamically, but we do
 not need to worry about the details of that right now. This file would take the
 general form
 
-```
+```typescript
 [
 {
 	collectionId: "<collection_id>",
@@ -275,8 +285,8 @@ general form
 ]
 ```
 
-<Todo: Remove ASC/DESC support for now, indicate that we will only allow
-inequalities on the first field>
+{/_ Todo: Remove ASC/DESC support for now, indicate that we will only allow
+inequalities on the first field _/}
 
 ### Subscriptions
 
@@ -285,15 +295,17 @@ subscribe to changes in collections and queries and be notified with updates are
 made in real time. We could create the subscription below to print messages sent
 from Alex to roomA.
 
-```
-let q = query('rooms/roomA/messages',
-      where('from', '==', 'alex'),
-      where('messageCount', '<', 500));
+```typescript
+let q = query(
+  "rooms/roomA/messages",
+  where("from", "==", "alex"),
+  where("messageCount", "<", 500)
+);
 
 let unsubscribeHandler = onSnapshot(q, (querySnapshot) => {
   const messages = [];
   querySnapshot.forEach((doc) => {
-      messages.push(doc.data().message);
+    messages.push(doc.data().message);
   });
   console.log(messages);
 });
@@ -345,7 +357,7 @@ instead of queuing the contested transactions and completing them in the order
 they were made. When I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
 should behave, so I am going to put them in the
-<additions and improvesments section>
+{/* additions and improvesments section */}
 
 ## Summary
 
@@ -362,9 +374,9 @@ should behave, so I am going to put them in the
   String, Bytes, Document Reference.
 - We will extend the database to support Array and Map values at the end of the
   series.
-- We will support **_simple queries_** on any field with the operators (<,
-  <=, >, >=, ==, !=) without the need for fields that are queried to be
-  specified in advance
+- We will support **_simple queries_** on any field with the operators (`<`,
+  `<=`, `>`, `>=`, `==`, `!=`) without the need for fields that are queried to
+  be specified in advance
 - We will support **_compound queries_**, but the fields that will be queried
   need to be specified in advance. Additionally, non-equality operators are only
   allowed on one field in a compound query.

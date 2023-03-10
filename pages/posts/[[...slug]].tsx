@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import Head from "next/head";
 import Link from "next/link";
+import Image from "next/image";
 import { serialize } from "next-mdx-remote/serialize";
 import { MDXRemote } from "next-mdx-remote";
 import { remarkCodeHike } from "@code-hike/mdx";
@@ -18,7 +19,7 @@ export default function Post({ source }) {
         <nav>
           <Link href="/">Home</Link>
         </nav>
-        <MDXRemote {...source} components={{ CH }} />
+        <MDXRemote {...source} components={{ CH, Image }} />
       </main>
     </>
   );
