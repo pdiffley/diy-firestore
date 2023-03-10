@@ -1,0 +1,124 @@
+## Query Subscriptions
+
+Now that we have added support for simple queries, we need to make sure that we
+can update any subscriptions to those queries. We will take the same approach
+that we took to querying our document and collection subscriptions, except now
+we need a table that includes a query's parameters.
+
+We will create the table simple_query_subscriptions
+
+```postgresql
+CREATE TABLE simple_query_subscriptions (
+  collection_parent_path      TEXT,
+  collection_id               TEXT,
+  field_name                  TEXT,
+  field_operator              TEXT,
+  field_value                 field_value,
+  subscription_id             TEXT,
+  PRIMARY KEY (subscription_id)
+);
+```
+
+Here we are storing the field name, the operator, and query parameter from the
+where clause of our query in addition to collection and subscription ids.
+
+So for a subscribtion to the query
+
+```typescript
+query("/users", where("name", "=", "Alice"));
+```
+
+we would store the row
+
+```postgresql
+('/', 'users', 'name', '=', 'Alice', <subscription_id>)
+```
+
+So we can query the subscription table efficiently, we will create the index
+
+```postgresql
+CREATE INDEX simple_query_collection_subscription_idx ON
+simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
+```
+
+This index let's us efficiently query subscriptions for a particular field,
+operator, and value. Now when we write a document to our database we can check
+each of the document's fields against our supported operators and identify any
+simple queries that are affected by the update.
+
+```rust
+fn get_matching_simple_query_subscriptions(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document: &Document) -> Vec<String>
+{
+  let operator_pairs = vec![("<", ">"), ("<=", ">="), ("=", "="), ("!=", "!="), (">", "<"), (">=", "<=")];
+
+  let mut matching_subscriptions = vec![];
+  for (field_name, field_value) in document.fields.iter() {
+    let sql_field_value = field_value_proto_to_sql(field_value);
+    for operator_pair in &operator_pairs {
+      let collection_query = format!("select subscription_id from simple_query_subscriptions where collection_parent_path = $1 and collection_id = $2 and field_name = $3 and field_operator = $4 and field_value {} $5", operator_pair.1);
+      let collection_subscriptions = transaction.query(
+        &collection_query,
+        &[&collection_parent_path, &collection_id, &field_name, &operator_pair.0, &sql_field_value],
+      ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
+      matching_subscriptions.extend(collection_subscriptions);
+
+      let collection_group_query = format!("select subscription_id from simple_query_subscriptions where collection_parent_path IS NULL and collection_id = $1 and field_name = $2 and field_operator = $3 and field_value {} $4", operator_pair.1);
+      let collection_group_subscriptions = transaction.query(
+        &collection_group_query,
+        &[&collection_id, &field_name, &operator_pair.0, &sql_field_value],
+      ).unwrap().into_iter().map(|x| x.get::<usize, String>(0));
+      matching_subscriptions.extend(collection_group_subscriptions)
+    }
+  }
+  matching_subscriptions
+}
+```
+
+Then we'll add this check to our create and delete function with our other
+subscriptions
+
+```rust
+fn create_document(/* ... */) {
+//...
+  matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
+//...
+}
+```
+
+```rust
+pub fn delete_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+) {
+  if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
+    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
+    delete_document_from_simple_query_table(transaction, collection_parent_path, collection_id, document_id);
+
+    let mut matching_subscriptions = vec![];
+    matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
+    matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, &document).into_iter());
+
+    // Todo: send update to matching subscriptions
+  }
+}
+```
+
+It's worth noting that from a Big(O) perspective checking for subscriptions
+against every operator for every field in a document we write is acceptable, but
+we still have to do **a lot** of checks every time we write a document with even
+a moderate number of fields. Being able to make queries on any field, any time
+we want comes at a cost! While Firestore allows you to select fields to exclude
+from this indexing, there is a limit to how many fields you can exclude (and it
+is kind of a pain). Keep reading to the <customizations and improvements>
+section to see how we might improve on this.
+
+### Next steps
+
+Our database is starting to look more like Firestore. Next, we'll provide
+support for composite queries.

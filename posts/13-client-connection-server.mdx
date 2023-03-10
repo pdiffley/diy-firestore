@@ -1,0 +1,153 @@
+### Delivering updates to clients
+
+By now we have done pretty much all of the heavy lifting to provide clients
+incrementally updating real time subscriptions to queries. We just need a way
+for our server to notify clients when they have updates to retrieve.
+
+Let's look at a system diagram for how we will do this:
+
+<system diagram>
+
+The system has 4 main pieces, the database server that we have spent most of
+this case study writing, a message queue (RabbitMQ is specified here, but SQS or
+PubSub would work as well), a long polling server, and the actual clients.
+
+The basic workflow is that a client will talk to the database server to
+subscribe to a query. The client will also connect to the long polling server so
+that we can send updates to the client from our back end. Then when a document
+is written to the database that affects one of our clients subscriptions, the
+database server will send a message through RabbitMQ to the long polling server,
+which will notify the client of the update.
+
+I won't implement this entire server connection here, but we can take a look at
+the basic structure of this workflow.
+
+First lets look at our long polling endpoint
+
+```rust
+const LONG_POLL_TIME_SECONDS: u64 = 20;
+
+pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
+  record_client_ping(sql_client, user_client_id);
+
+  // Todo: Subscribe to RabbitMQ
+  //		on message queue notification for user_client_id
+  //    	close request with message that client should retrieve updates
+
+  if client_is_out_of_date(sql_client, user_client_id) {
+    // Todo: close request with message that client should retrieve updates
+  }
+
+  sleep(Duration::new(LONG_POLL_TIME_SECONDS, 0));
+  // Todo: close request with message that client is up to date
+}
+
+pub fn client_is_out_of_date(sql_client: &mut Client, user_client_id: &str) -> bool {
+  return sql_client.query(
+    "SELECT 1 FROM client_subscriptions C JOIN update_queues U
+     ON C.subscription_id = U.subscription_id
+     WHERE C.client_id = $1
+     LIMIT 1",
+    &[&user_client_id])
+    .unwrap().len() == 0;
+}
+```
+
+This function first subscribes to RabbitMQ messages tagged for the client id,
+then checks if any updates have been pushed to its queue since it last checked
+in with the long polling server, and then waits. If there are existing updates
+for the client, or if there there is a message from RabbitMQ, the request is
+closed notifying the client that it needs to retrieve updates for its
+subscriptions. If there are no updates in `LONG_POLL_TIME_SECONDS`, the request
+closes with a message that the client is up to date. At this point, the client
+would reopen the connection to listen for further updates.
+
+If the client is notified that it has pending updates, it will request those
+updates from the database server
+
+```rust
+pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateValue> {
+  sql_client.query(
+    "SELECT subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id
+     FROM client_subscriptions C JOIN update_queues U
+     ON C.subscription_id = U.subscription_id
+     WHERE C.client_id = $1
+     LIMIT 1",
+    &[&user_client_id])
+    .unwrap().into_iter()
+    .map(|row| UpdateValue {
+      subscription_id: row.get(0),
+      collection_parent_path: row.get(1),
+      collection_id: row.get(2),
+      document_id: row.get(3),
+      document_data: row.get(4),
+      update_id: row.get(5),
+    })
+    .collect()
+}
+```
+
+The after receiving the updates, it will confirm that it received the updates,
+so the database server can clear them from the update queue.
+
+```rust
+pub fn confirm_updates(sql_client: &mut Client, user_client_id: &str, update_ids: &[String]) {
+  sql_client.execute(
+    "delete FROM update_queues U USING client_subscriptions C
+     where U.subscription_id = C.subscription_id and C.client_id = $1 and U.update_id IN $2",
+    &[&user_client_id, &update_ids]).unwrap();
+}
+```
+
+Here we are using the update_id to make sure we do not delete updates for
+documents that have been updated again since the client initially retrieved the
+updates.
+
+We will also specify a TTL for a subscription, so that if a client has not
+connected to the long polling server recently, we will close it's subscriptions
+(Firestore using a ~30 minute window before subscriptions are reset). For now,
+we will just imagine that we have a clean up script that periodically delete
+stale clients and subscriptions from the our tables.
+<Move this to just be in the bonus section>
+
+And that's it! We have a system that can allow a client to subscribe to database
+queries and be notified of changes without data loss.
+
+### Why Long Polling?
+
+There are a several options for how we could support sending messages from our
+server to our clients (eg. websockets, server sent events), so why are we using
+long polling?
+
+<go into more detail on why long polling is ideal for this situation?>
+
+Long polling has quite a few benefits for our use case. The first is that unlike
+websockets and server sent events, any individual client's connection resets
+after the long poll window (set to 30 seconds above). This allows us to set up
+mostly stateless servers that are trivial to horizontally scale and load
+balance. We can scale a set of distributed long polling servers up and down and
+not worry about interrupting client connections.
+
+Websockets and server sent events are relatively easy to scale vertically, but
+distributing those connections across multiple servers becomes a more
+complicated and expensive task with additional complications to make sure that
+load is adequately balanced both by the number of connections per server and the
+number of messages being sent and received by each server.
+
+Even though we may not strictly require horizontal scaling for our use case, the
+easy horizontal scaling provided by long polling will let us easily autoscale
+our client connection servers, reducing cloud costs.
+
+Long polling also provides us with built in retryability. While unlikely to drop
+messages, the chain of events between finishing our database transaction and
+notifying the client that it needs to request updates is not guaranteed to go
+unbroken. However, because our client will be reconnecting to our long polling
+server every 30 seconds or so, a dropped message will only result in a short
+delay before the client identifies that it needs to request updates.
+
+One note, sometimes websockets are preferable to long polling. For example, if
+we required higher frequency message passing between our client and server
+(synchronizing state in a multiplayer game for example), websockets would likely
+a better choice. We need that rate of message passing though, so the drawbacks
+of websockets outweigh the benefits. A couple seconds of delay receiving a
+subscription updates every now and then is not a problem for our use case.

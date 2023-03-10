@@ -1,0 +1,100 @@
+### Bonus Features!
+
+One of the nice things about building your own database is that you can make it
+do whatever you want! So far in this series, we have been focussed on
+replicating the features of firestore. Now we will take a high level look at
+some additional features we might want to add
+
+### Opt in queries on simple fields
+
+We saw earlier in the <simple queries> and <simple subscriptions> sections the
+processing overhead that comes
+
+Having fields be automatically queriable is convenient when you are just
+starting a project and want to mimimized any configuration other than your code,
+but for a mature project, specifying which fields you want to be able to query
+is not a very high burden. We could provide the option to have simple queries be
+opt in on a field, document, or collection level. This would significantly
+reduce the cost of writing new documents to the database. Since we woudl be
+running this database on our own infrastructure, reducing the write overhead
+would have a direct impact on our cloud costs.
+
+### Allow more complex composite queries
+
+This one comes with some caveats. Firestore only allows us to have inequality
+operators on one field in a composite query. This pretty much guarantees that we
+will not write an inefficient query. Once you start allowing inequality
+operators on more than one field the effectiveness of the B-Tree index for that
+query starts to go down. Since we would be responsible for the cost of the
+infrastructure the database is running on rather than paying per document read
+and write, we could allow these potentially less efficient queries. We would
+still want to proceed with caution though so we don't bog down our database.
+
+### Configurable TTL for client subscriptions
+
+In Firestore if a client has been disconnected for more than about 30 minutes,
+any subscriptions made by the client expire and will have to be fully reloaded
+when the client reconnects. This is generally a good thing as it prevents you
+from performing upkeep on old subscriptions that are not going to be checked any
+time soon, but the TTL that you would want to have on a subscription can vary
+significantly by the type of subscription. For example, you may have a
+subscription to a high touch document that you only want to be active while the
+client is actively connected and receiving updates. In this case the cost of
+reloading the entire subscription (one document) is low, and the cost of
+maintaining the subscription (a frequent additional write) is high.
+
+A very different situation would be a messaging app (this one is from personal
+experience). For a messaging app, you would ideally like to subscribe to the
+list of a users messages once and never have to reload the entire message
+collection. Reloading a users entire message history is expensive, but just
+retrieving the messages they have received since they last connected is
+relatively cheap. In this case you would want to set a long TTL (eg. weeks), so
+that fully refreshes are rare.
+
+Firestore likely doesn't allow you to adjust the TTL for a subscription because
+users are charged a fixe price per read and write. Increasing the TTL on a
+subscription would increase the internal cost of those operations. However,
+since we are running this database on our own infrastructure, there is nothing
+stopping us from setting TTL's that makes the most sense for our application and
+subscriptions (I am still annoyed by how much time I could have saved in a
+previous project if Firestore provided this feature out of the box).
+
+### Protobuf-like ability to rename collections and field names
+
+Being schemaless is one of Firestore's selling points, but there are often times
+where that can slow down development. One way this comes up is in Choosing name
+for fields and collections. When you are starting a project that needs to
+iterate rapidly, you likely don't want to spend lots of time carefully choosing
+names for your fields, but you also don't have the full context of what other
+fields and collections might exist in the future. This can lead to a situation
+where aftera. few months of development naming choices that made sense at the
+time are quite confusing.
+
+Because collection and field names are stored explicitly as strings within
+Firestore and referenced explicitly in client code, migrating these names
+without causing interuptions is difficult.
+
+It would be great to be able to provide a client side config that would
+translate between an internal name that is stored in the firestore and a name
+that is used in your client side code (much like protobuf). Then you could name
+your fields whatever you felt like in the moment, have those field names be
+given a constant compact representation, and change the client side name
+whenever you want.
+
+### Provide transparent support for large blob storage
+
+One of the annoying things about working with photos, videos, and other large
+files types is that you can't (or at least shouldn't) store them directly in
+your database. The standard solution is to store the large file in networked
+storage and save the path to the file in your database. This works, but adds
+additional hassle to working with these files since you have to first retrieve
+the file information from the database, then separately load the file from
+storage, and then do the reverse if you are editing the file.
+
+We are already putting a server in front of our database, so there is not much
+stopping us from providing a extra "large_blob" data type that will
+transparently do this file management for us. Behind the scenes we would manage
+storing the blob in file storage, and storing the file id in the database. From
+the user's perspective you would be allowed to write arbitrarily sized blobs
+directly to the database, without encountering the performance issues this would
+normally incur.
