@@ -8,8 +8,8 @@ give a lightning round description of the features we will be implementing, and
 specify some **_key terms_** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
 to skim or skip to the Summary at the bottom. Alternatively, if you have no idea
-how Firestore works at all, it could be helpful to read the {/_Firestore's
-docs_/} which explain Firestore's features in more detail.
+how Firestore works at all, it could be helpful to read the {/_ Firestore's docs
+_/} which explain Firestore's features in more detail.
 
 ### Data Organization
 
@@ -24,24 +24,26 @@ chat room example from the
 
 <Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> rooms
 
-​
+<div style={{marginLeft: "2rem"}}>
+  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomA
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-roomA
+  <div style={{marginLeft: "2rem"}}>
+  `name : 'Chat Room A'`
+  </div>
+</div>
 
-​ `name : 'Chat Room A'`
+<div style={{marginLeft: "2rem"}}>
+  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomB
 
-​
+  <div style={{marginLeft: "2rem"}}>
+  `name : 'Chat Room B'`
+  </div>
+</div>
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-roomB
-
-​ `name : 'Chat Room B'`
-
-We have a collection with a collection*id "rooms". It holds multiple documents
-which each represent a chat room. The two documents shown have doc_ids "roomA"
-and "roomB". Each of our chat room documents have a \*\*\_field*** with the
-**_key_** "name" and a string **_value_\*\* holding the chat room's descriptive
+We have a collection with a collection\*id "rooms". It holds multiple documents
+which each represent a chat room. The two documents shown have doc*ids "roomA"
+and "roomB". Each of our chat room documents have a \*\*\_field**\* with the
+**\_key*** "name" and a string **_value_\*\* holding the chat room's descriptive
 name.
 
 ##### Subcollections
@@ -49,64 +51,80 @@ name.
 Our documents can also have subcollections. In this case, we will give each chat
 room a subcollection, "messages".
 
-<Image
-  src="/images/collection-dark.png"
-  alt="drawing"
-  height="30"
-  width="30"
-/> rooms
+<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> rooms
 
-​
+<div style={{marginLeft: "2rem"}}>
+  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomA
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-roomA
+{" "}
+<div style={{ marginLeft: "2rem" }}>`name : 'Chat Room A'`</div>
 
-​ `name : 'Chat Room A'`
+<div style={{marginLeft: "2rem"}}>
+  <Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> messages
 
-​
+  <div style={{marginLeft: "2rem"}}>
+    <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> message1
 
-<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" />
-messages
+    <div style={{marginLeft: "2rem"}}>
+      `from : 'alex'`
 
-​
+      `message : 'Hello World!'`
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-message1
+      `messageCount: 0`
+    </div>
 
-​ `from : 'alex'` ​ `message : 'Hello World!'` ​ `messageCount: 0`
+  </div>
 
-​
+  <div style={{marginLeft: "2rem"}}>
+    <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> message2
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-message2
+    <div style={{marginLeft: "2rem"}}>
+      `from : 'mary'`
 
-​ `from : 'mary'` ​ `message : 'Hello Worlds!'` ​ `messageCount: 1`
+      `message : 'Hello Worlds!'`
 
-​
+      `messageCount: 1`
+    </div>
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-roomB
+  </div>
+</div>
 
-​ `name : 'Chat Room B'`
+<div style={{marginLeft: "2rem"}}>
+  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomB
 
-​
+{" "}
+<div style={{ marginLeft: "2rem" }}>`name : 'Chat Room B'`</div>
 
-<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" />
-messages
+  <div style={{marginLeft: "2rem"}}>
+    <Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> messages
 
-​
+    <div style={{marginLeft: "2rem"}}>
+      <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> message1
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-message1
+        <div style={{marginLeft: "2rem"}}>
+          `from : 'jeff'`
 
-​ `from : 'jeff'` ​ `message : 'Lorem'` ​ `messageCount: 0`
+          `message : 'Lorem'`
 
-​
+          `messageCount: 0`
+        </div>
+      </div>
 
-<Image src="/images/document-dark.png" alt="drawing" height="30" width="30" />
-message2
+      <div style={{marginLeft: "2rem"}}>
+        <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> message2
 
-​ `from : 'alex'` ​ `message : 'Ipsum'` ​ `messageCount: 1`
+        <div style={{marginLeft: "2rem"}}>
+          `from : 'alex'`
+
+          `message : 'Ipsum'`
+
+          `messageCount: 1`
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 The "messages" subcollection holds all of the messages in the chat room. In this
 case, each message document has three fields, "from", "message", and
@@ -168,9 +186,9 @@ the language does not natively support full 64 bit integers, but because all of
 our backend code will be in in Rust, we could still support 64 bit integers in
 other client side languages.
 
-{/_Todo: Note that in a production app we might want to integrate the rust code
+{/_ Todo: Note that in a production app we might want to integrate the rust code
 into database functions through a c interface to avoid making multiple round
-trips between our server and database_/}
+trips between our server and database _/}
 
 ### Queries
 
