@@ -8,8 +8,8 @@ give a lightning round description of the features we will be implementing, and
 specify some **_key terms_** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
 to skim or skip to the Summary at the bottom. Alternatively, if you have no idea
-how Firestore works at all, it could be helpful to read the {/_ Firestore's docs
-_/} which explain Firestore's features in more detail.
+how Firestore works at all, it could be helpful to read the {/* Firestore's docs
+*/} which explain Firestore's features in more detail.
 
 ### Data Organization
 
@@ -40,10 +40,10 @@ chat room example from the
   </div>
 </div>
 
-We have a collection with a collection\*id "rooms". It holds multiple documents
-which each represent a chat room. The two documents shown have doc*ids "roomA"
-and "roomB". Each of our chat room documents have a \*\*\_field**\* with the
-**\_key*** "name" and a string **_value_\*\* holding the chat room's descriptive
+We have a collection with a collection_id "rooms". It holds multiple documents
+which each represent a chat room. The two documents shown have doc_ids "roomA"
+and "roomB". Each of our chat room documents have a **_field_** with the
+**_key_** "name" and a string **_value_** holding the chat room's descriptive
 name.
 
 ##### Subcollections
@@ -57,6 +57,7 @@ room a subcollection, "messages".
   <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomA
 
 {" "}
+
 <div style={{ marginLeft: "2rem" }}>`name : 'Chat Room A'`</div>
 
 <div style={{marginLeft: "2rem"}}>
@@ -93,6 +94,7 @@ room a subcollection, "messages".
   <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomB
 
 {" "}
+
 <div style={{ marginLeft: "2rem" }}>`name : 'Chat Room B'`</div>
 
   <div style={{marginLeft: "2rem"}}>
@@ -186,9 +188,9 @@ the language does not natively support full 64 bit integers, but because all of
 our backend code will be in in Rust, we could still support 64 bit integers in
 other client side languages.
 
-{/_ Todo: Note that in a production app we might want to integrate the rust code
+{/* Todo: Note that in a production app we might want to integrate the rust code
 into database functions through a c interface to avoid making multiple round
-trips between our server and database _/}
+trips between our server and database */}
 
 ### Queries
 
@@ -303,8 +305,8 @@ general form
 ]
 ```
 
-{/_ Todo: Remove ASC/DESC support for now, indicate that we will only allow
-inequalities on the first field _/}
+{/* Todo: Remove ASC/DESC support for now, indicate that we will only allow
+inequalities on the first field */}
 
 ### Subscriptions
 
