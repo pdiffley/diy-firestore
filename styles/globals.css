@@ -2,7 +2,7 @@ main {
   max-width: 750px;
   margin: auto;
   padding: 40px;
-  font-family: "nyt-franklin", Georgia, "Times New Roman", Times, serif;
+  font-family: Georgia, "Times New Roman", Times, serif;
   line-height: 1.6em;
 }
 
@@ -15,4 +15,29 @@ h1 {
   border: thin solid aquamarine;
   border-radius: 1em;
   padding: 1em 2em;
+}
+
+.collection {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.collections-tabbed {
+  margin-left: 2rem;
+}
+
+.document-title {
+  display: flex;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.document-name {
+  margin-top: .2rem;
+}
+
+code {
+  font-family: 'SF Mono Medium', 'Fira Code', 'Cousine', 'Consolas', monospace;
+  background-color: #ededf5;
+  padding: 0.125rem;
+  border-radius: 0.25rem;
 }

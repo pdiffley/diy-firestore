@@ -22,21 +22,15 @@ collection with its own string identifier, **_collection_id_**. Consider the
 chat room example from the
 [Firestore documentation](https://firebase.google.com/docs/firestore/data-model#hierarchical-data).
 
-<Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> rooms
-
-<div style={{marginLeft: "2rem"}}>
-  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomA
-
-  <div style={{marginLeft: "2rem"}}>
-  `name : 'Chat Room A'`
+<div className="collection">
+  <div className="document-title"> <Image src="/images/collection-dark.png" alt="drawing" height="30" width="30" /> <div className="document-name"> rooms </div> </div>
+  <div className="collections-tabbed">
+    <div className="document-title"><Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> <div className="document-name"> roomA </div> </div>
+    <div className="collections-tabbed">`name : 'Chat Room A'`</div>
   </div>
-</div>
-
-<div style={{marginLeft: "2rem"}}>
-  <Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> roomB
-
-  <div style={{marginLeft: "2rem"}}>
-  `name : 'Chat Room B'`
+  <div className="collections-tabbed">
+    <div className="document-title"><Image src="/images/document-dark.png" alt="drawing" height="30" width="30" /> <div className="document-name"> roomB </div> </div>
+    <div className="collections-tabbed">`name : 'Chat Room B'`</div>
   </div>
 </div>
 
