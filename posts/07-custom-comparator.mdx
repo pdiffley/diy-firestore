@@ -4,7 +4,7 @@
 
 In the previous section, we created a custom composite type "field_value".
 
-```postgresql
+```sql
 CREATE TYPE field_value AS (
   null_value        boolean,
   boolean_value     boolean,
@@ -32,13 +32,13 @@ same page.
 
 **Operator**
 
-An operator is the symbol representing some operation (eg. ">", "<" "="). It is
+An operator is the symbol representing some operation (eg. `>`, `<`, `=`). It is
 the symbol you put in a "where" clause to limit the scope of a query.
 
 Postgres allows us to define a new operator and associate it with a function
 that will be called when the operator is used. Operators can be overloaded for
 different types, so we can use standard operator symbols for our custom type. We
-can use the "<" symbol to perform a "less than" operation for example.
+can use the `<` symbol to perform a "less than" operation for example.
 
 **Strategies and support functions**
 
@@ -65,7 +65,7 @@ create an index for a given type.
 To create a btree index for our field_value type, we need to create an operator
 class with a command like
 
-```postgresql
+```sql
 create operator class field_value_ops
     default for type field_value using btree as
         operator        1       < ,
@@ -76,24 +76,24 @@ create operator class field_value_ops
         function        1       field_value_cmp(field_value, field_value);
 ```
 
-This command creates the operator class "field_value_ops" and tells the database
+This command creates the operator class `field_value_ops` and tells the database
 to use the operator class as the default set of comparison functions for
-field_values when indexing with a btree. The command assigns operators, "<",
-"<=", "=", ">=", and ">", to the btree's corresponding strategy numbers, and
-assigns the function "field_value_cmp" to the btree's corresponding support
+field_values when indexing with a btree. The command assigns operators, `<`,
+`<=`, `=`, `>=`, and `>`, to the btree's corresponding strategy numbers, and
+assigns the function `field_value_cmp` to the btree's corresponding support
 function number. Of course before we can make this operator class, we need to
 implement these operators and functions for our field_value type.
 
 Before we implement out operators, I'd like point out again that because of the
-way postgres maps operators to indexing "strategies", we did not have to use the
+way postgres maps operators to indexing `strategies`, we did not have to use the
 operator symbols shown in the command above. Even though the strategy number
-**1** expects a "less than" operation we did not need to assign that strategy an
-operator with the "<" symbol. As long as the operator we assign the to strategy
-1 performs a "less than" comparison for two field values, the index is happy.
+**1** expects a `less than` operation we did not need to assign that strategy an
+operator with the `<` symbol. As long as the operator we assign the to strategy
+1 performs a `less than` comparison for two field values, the index is happy.
 
 So if you were feeling particularly excited one day and wanted to pass that
 enthusiam along to your database, you could assign the "equal" strategy the
-operator "=D". Fun right? Who ever said database engineers don't know how to
+operator `=D`. Fun right? Who ever said database engineers don't know how to
 have a good time? Please don't do this.
 
 ## Building our operator class
@@ -114,7 +114,7 @@ languages though!
 ### Generic comparison function
 
 Before we implement comparison operators for field_value we will first write a
-generic comparison function "field_value_cmp". Our comparison function will take
+generic comparison function `field_value_cmp`. Our comparison function will take
 two field_values, **a** and **b**, and return -1 if **a** is less than **b**, 0
 if **a** equals **b**, and 1 if **a** is greater than **b**.
 
@@ -374,7 +374,7 @@ $$language plpgsql;
 Now that we have a dedicated comparison functions, we can implement operators
 for field_value. Lets look at the "less than" operator first.
 
-```postgresql
+```sql
 CREATE OPERATOR < (
     leftarg = field_value,
     rightarg = field_value,
@@ -387,12 +387,12 @@ CREATE OPERATOR < (
 ```
 
 This command tells the Postgres that we are defining a new operator mapped to
-the "<" symbol.
+the `<` symbol.
 
 The parameters `function`, `leftarg`, and `rightarg` indicate that the operator
 will call our newly defined field_value_lt function, and that the left and right
 arguments of the operator will be of type field_value. The left and right
-arguments of the "<" operator will be passed to the `a` and `b` arguments of
+arguments of the `<` operator will be passed to the `a` and `b` arguments of
 `field_value_lt`.
 
 The parameters `commutator`, `negator`, `restrict`, and `join` tell postgres how
@@ -407,7 +407,7 @@ a "less than" operator.
 
 Now let's create the rest of our operators
 
-```postgresql
+```sql
 CREATE OPERATOR <= (
     leftarg = field_value,
     rightarg = field_value,
@@ -465,7 +465,7 @@ CREATE OPERATOR != (
 With all of our functions and operators defined, we can now run the command to
 define our operator class
 
-```postgresql
+```sql
 CREATE OPERATOR CLASS field_value_ops DEFAULT for TYPE field_value
 USING btree AS
   OPERATOR 1 < ,
@@ -480,7 +480,7 @@ The database will now use our user defined comparison operators to compare
 field_value types and build a btree index for field_value columns! Let's test
 this out.
 
-```postgresql
+```sql
 SELECT * FROM ( VALUES
 (cast((NULL, NULL, NULL, NULL, NULL, 234, 12, NULL, NULL, NULL, NULL) AS field_value)),
 (cast((NULL, NULL, NULL, 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
@@ -516,7 +516,7 @@ ORDER BY field_value ASC;
 
 This query results in the output
 
-```postgresql
+```sql
           field_value
 -------------------------------
  (Exists,,,,,,,,,,)
@@ -572,7 +572,7 @@ It is possible to alter our comparison functions so that we can enable
 deduplication, but when then need to take that into account when writing the
 code to support queries. To avoid that complexity, I am just leaving
 deduplication off for now. I'll revisit this and go over the modifcations we
-would need to make to support deduplication later in the <bonus section>. If you
+would need to make to support deduplication later in the [bonus section]. If you
 are interested in the detail of how Postgres handles deduplication,
 [the docs](https://www.postgresql.org/docs/current/btree-implementation.html#BTREE-DEDUPLICATION)
 explain it quite well.

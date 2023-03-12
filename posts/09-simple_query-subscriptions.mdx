@@ -7,7 +7,7 @@ we need a table that includes a query's parameters.
 
 We will create the table simple_query_subscriptions
 
-```postgresql
+```sql
 CREATE TABLE simple_query_subscriptions (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -30,13 +30,13 @@ query("/users", where("name", "=", "Alice"));
 
 we would store the row
 
-```postgresql
+```sql
 ('/', 'users', 'name', '=', 'Alice', <subscription_id>)
 ```
 
 So we can query the subscription table efficiently, we will create the index
 
-```postgresql
+```sql
 CREATE INDEX simple_query_collection_subscription_idx ON
 simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
 ```
@@ -115,8 +115,44 @@ we still have to do **a lot** of checks every time we write a document with even
 a moderate number of fields. Being able to make queries on any field, any time
 we want comes at a cost! While Firestore allows you to select fields to exclude
 from this indexing, there is a limit to how many fields you can exclude (and it
-is kind of a pain). Keep reading to the <customizations and improvements>
+is kind of a pain). Keep reading to the [customizations and improvements]
 section to see how we might improve on this.
+
+### Create a new subscription
+
+Like with our basic subscriptions, to create a new subscription, craete a new subscription id
+and insert a row for the query into `simple_query_subscriptions`.
+
+```rust
+pub fn subscribe_to_simple_query(
+  transaction: &mut Transaction,
+  client_id: &str,
+  collection_parent_path: &Option<String>,
+  collection_id: &str,
+  field_name: &str,
+  field_operator: &str,
+  field_value: &field_value)
+  -> String
+{
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
+  transaction.execute("insert into client_subscriptions values ($1, $2)",
+                      &[&subscription_id, &client_id]).unwrap();
+
+  let collection_parent_path_string: String;
+  if let Some(collection_parent_path) = collection_parent_path {
+    collection_parent_path_string = collection_parent_path.clone();
+  } else {
+    collection_parent_path_string = "NULL".to_owned();
+  }
+
+  transaction.execute("insert into simple_query_subscriptions values ($1, $2, $3, $4, $5, $6)",
+                      &[&collection_parent_path_string, &collection_id, &field_name, &field_operator, &field_value, &subscription_id]).unwrap();
+
+  // Todo: trigger first subscription update?
+  subscription_id
+}
+```
+
 
 ### Next steps
 

@@ -9,9 +9,9 @@ With our custom type in hand, we can provide support for querying our documents.
 
 ## Simple Queries
 
-We'll start by creating the lookup table from <first query section>
+We'll start by creating the lookup table from [first query section]
 
-```postgresql
+```sql
 CREATE TABLE simple_query_subscriptions (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -25,7 +25,7 @@ CREATE TABLE simple_query_subscriptions (
 We will support queries on collections and collection groups with the following
 indexes.
 
-```postgresql
+```sql
 CREATE INDEX simple_query_collection_subscription_idx ON
 simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
 ```

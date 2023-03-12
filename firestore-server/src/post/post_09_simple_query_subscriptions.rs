@@ -99,3 +99,30 @@ pub fn delete_document(
   }
 }
 
+pub fn subscribe_to_simple_query(
+  transaction: &mut Transaction,
+  client_id: &str,
+  collection_parent_path: &Option<String>,
+  collection_id: &str,
+  field_name: &str,
+  field_operator: &str,
+  field_value: &field_value)
+  -> String
+{
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
+  transaction.execute("insert into client_subscriptions values ($1, $2)",
+                      &[&subscription_id, &client_id]).unwrap();
+
+  let collection_parent_path_string: String;
+  if let Some(collection_parent_path) = collection_parent_path {
+    collection_parent_path_string = collection_parent_path.clone();
+  } else {
+    collection_parent_path_string = "NULL".to_owned();
+  }
+
+  transaction.execute("insert into simple_query_subscriptions values ($1, $2, $3, $4, $5, $6)",
+                      &[&collection_parent_path_string, &collection_id, &field_name, &field_operator, &field_value, &subscription_id]).unwrap();
+
+  // Todo: trigger first subscription update?
+  subscription_id
+}

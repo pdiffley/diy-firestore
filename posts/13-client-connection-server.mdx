@@ -6,7 +6,7 @@ for our server to notify clients when they have updates to retrieve.
 
 Let's look at a system diagram for how we will do this:
 
-<system diagram>
+[system diagram]
 
 The system has 4 main pieces, the database server that we have spent most of
 this case study writing, a message queue (RabbitMQ is specified here, but SQS or
@@ -14,7 +14,7 @@ PubSub would work as well), a long polling server, and the actual clients.
 
 The basic workflow is that a client will talk to the database server to
 subscribe to a query. The client will also connect to the long polling server so
-that we can send updates to the client from our back end. Then when a document
+that we can send updates to the client from our backend. Then when a document
 is written to the database that affects one of our clients subscriptions, the
 database server will send a message through RabbitMQ to the long polling server,
 which will notify the client of the update.
@@ -103,14 +103,6 @@ Here we are using the update_id to make sure we do not delete updates for
 documents that have been updated again since the client initially retrieved the
 updates.
 
-We will also specify a TTL for a subscription, so that if a client has not
-connected to the long polling server recently, we will close it's subscriptions
-(Firestore using a ~30 minute window before subscriptions are reset). For now,
-we will just imagine that we have a clean up script that periodically delete
-stale clients and subscriptions from the our tables.
-
-<Move this to just be in the bonus section>
-
 And that's it! We have a system that can allow a client to subscribe to database
 queries and be notified of changes without data loss.
 
@@ -119,8 +111,6 @@ queries and be notified of changes without data loss.
 There are a several options for how we could support sending messages from our
 server to our clients (eg. websockets, server sent events), so why are we using
 long polling?
-
-<go into more detail on why long polling is ideal for this situation?>
 
 Long polling has quite a few benefits for our use case. The first is that unlike
 websockets and server sent events, any individual client's connection resets
@@ -139,16 +129,15 @@ Even though we may not strictly require horizontal scaling for our use case, the
 easy horizontal scaling provided by long polling will let us easily autoscale
 our client connection servers, reducing cloud costs.
 
-Long polling also provides us with built in retryability. While unlikely to drop
-messages, the chain of events between finishing our database transaction and
-notifying the client that it needs to request updates is not guaranteed to go
+Long polling also provides us with built in retryability. The chain of events 
+between finishing our database transaction and notifying the client that it
+needs to request updates is not guaranteed to go
 unbroken. However, because our client will be reconnecting to our long polling
-server every 30 seconds or so, a dropped message will only result in a short
+server every 30 seconds or so, a rare dropped message will only result in a short
 delay before the client identifies that it needs to request updates.
 
-One note, sometimes websockets are preferable to long polling. For example, if
+Websockets are preferable to long polling in some cases. For example, if
 we required higher frequency message passing between our client and server
 (synchronizing state in a multiplayer game for example), websockets would likely
-a better choice. We need that rate of message passing though, so the drawbacks
-of websockets outweigh the benefits. A couple seconds of delay receiving a
-subscription updates every now and then is not a problem for our use case.
+a better choice. We don't need that rate of message passing though, so the drawbacks
+of websockets outweigh the benefits.

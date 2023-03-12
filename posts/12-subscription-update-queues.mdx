@@ -1,27 +1,27 @@
 ### Subscription Updates
 
 So far we have written code that identifies what subscriptions need to be
-updated when a write is made to the database, but we have not specified how the
-subscriptions will be updated.
+updated when a write is made to the database, but we have not specified how we will
+actually send those updates.
 
 A naive implemenation, would just notify the client of a subscription that a
 subscription was updated, and have it re-query the data.
 
 That leads to some n^2 behavior though, rereading an entire collection everytime
-a document is added for example, and also introduces the possibility that a
+a document is added, and also introduces the possibility that a
 message would be dropped resulting in a subscription being out of date until the
 next write that affected it comes through.
 
-When write affects a subscription, we need a way to reliably send the subscriber
-only the changes that have been made without losing any state. We will create a
-"queue" (I use the term loosely) for each subscription a client has, when a
-subscription is affected by a write, the update will be written to the queue.
-The client can the retrieve all of the changes for its subscriptions from the
+When a write affects a subscription, we need a way to reliably send the subscriber
+only the changes that have been made without the risk of data being lost. We will create a
+queue (I use the term loosely) for every client. When a
+client's subscription is affected by a write, the update will be written to the queue.
+The client can then retrieve all of the changes for its subscriptions from the
 update queue.
 
 We will put all of our queues into a table, update queues.
 
-```postgresql
+```sql
 CREATE TABLE update_queues (
   subscription_id             TEXT,
   collection_parent_path      TEXT,
@@ -34,7 +34,7 @@ CREATE TABLE update_queues (
 
 Each row in this table specifies a subscription and an updated document for the
 subscription. If the document was deleted, we will set document_data to NULL.
-The code add modified documents to the update queues is fairly straightforward
+The code to add modified documents to the update queues is fairly straightforward
 
 ```rust
 pub fn write_change_to_update_queues(
@@ -58,8 +58,9 @@ pub fn write_change_to_update_queues(
 }
 ```
 
-For each subscription affected by the update, we delete the existing document
-from its update queue if there is one, then insert the new document. Now we just
+For each subscription affected by the update, we delete any existing document 
+with the same id (an old update that has not been retrieved yet) from its 
+update queue if there is one, then insert the new document. Now we just
 pop this function into our create and delete functions
 
 ```rust
@@ -112,11 +113,12 @@ fn create_document(
 }
 ```
 
-Because our update queues are just another table in our postgres database we can
-update the queues in the same transaction that all other associated
-modifications are made it ensuring that we never drop any updates. When we
-deliver the update to the subscribing client, we just need to confirm that the
-client has received the update before removing items from the update queue.
+Because our update queues are just another table in our postgres database we can add documents
+to the queues in the same transaction that all other associated
+modifications are made it ensuring that the update queue always represents the 
+lastest state of the database. When we deliver the update to the subscribing 
+client, we just need to confirm that the client has received the update before 
+removing items from the queue.
 
 ### Next up
 

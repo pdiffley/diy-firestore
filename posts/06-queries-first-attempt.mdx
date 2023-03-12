@@ -14,7 +14,7 @@ of our lookup table around specific queries or documents. Instead, we need a
 generic was to query documents based on any field a user wants to search for at
 run time. To that end, we will create the lookup table `simple_query_lookup`
 
-```postgresql
+```sql
 CREATE TABLE simple_query_lookup (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -45,7 +45,7 @@ us do just that. There are
 for creating a type. We will create a composite type with type field_value with
 the following command
 
-```postgresql
+```sql
 CREATE TYPE "Unit" AS ENUM ('NotNull');
 
 CREATE TYPE field_value AS (
@@ -57,7 +57,7 @@ CREATE TYPE field_value AS (
   timestamp_nanos   INT8,
   timestamp_seconds INT8,
   string_value      TEXT,
-  bytes_value       bytea,
+  bytes_value       BYTEA,
   reference_value   TEXT,
   max               "Unit"
 );
@@ -75,7 +75,7 @@ smaller or larger than any valid field input by the user.
 Composite types in Postgres behave similarly to rows in a table, and we can
 create an instance of our variable with similar syntax.
 
-```postgresql
+```sql
 CAST((,,5,,,,,,) as field_value)
 ```
 
@@ -87,7 +87,7 @@ will recognize it as our composite field_value type.
 We have a problem though. Postgres does not know how to properly order our
 field_value type. Consider the following example.
 
-```postgresql
+```sql
 SELECT * FROM ( VALUES
 	(CAST((NULL, NULL, NULL, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
 	(CAST((NULL, NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),

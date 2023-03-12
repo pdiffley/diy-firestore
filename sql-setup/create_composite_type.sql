@@ -9,7 +9,7 @@ CREATE TYPE field_value AS (
   timestamp_nanos   INT8,
   timestamp_seconds INT8,
   string_value      TEXT,
-  bytes_value       bytea,
+  bytes_value       BYTEA,
   reference_value   TEXT,
   max               "Unit"
 );

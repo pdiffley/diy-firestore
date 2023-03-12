@@ -1,17 +1,17 @@
 ### Real time updates
 
 The ability to subscribe to changes in database state is a key feature of
-Firestore that distinguishes it over other databases. For any query, we we can
-make to the database, Firestore allows us to create a listener that receive's
-updates whenever the database changes in a way that would affect the queries
+Firestore that distinguishes it over other databases. For any query, we can
+make to the database, we can create a listener that receive's
+updates whenever the database changes in a way that would affect that query's
 results.
 
 Supporting this feature introduces significant system design complications
-though. A naive approach would to have each listener poll our database for
+though. A naive approach would have each listener poll our database for
 updates. This quickly becomes unscaleable because the polling would repeatedly
 send the same queries to the database to regardless of whether the query results
 have changed. Even at a small scale, this approach would hammer our database
-with requests, almost all of which would return no new information to the
+with expensive requests, almost all of which would return no new information to the
 client.
 
 A better approach is to check for updates when we write to the database and send
@@ -24,12 +24,12 @@ When we write a document to the database, we need a way to efficiently select
 the set of subscriptions that are affected by the write. In short, we need to
 query the set of subscriptions to the database.
 
-#### Subscriptions to documents, collections, and collection_groups
+#### Identify subscriptions affected by a write
 
 With that in mind, we will create a table "basic_subscriptions", where we will
 track subscriptions to documents, collections, and collection groups
 
-```postgresql
+```sql
 CREATE TABLE basic_subscriptions (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -47,7 +47,7 @@ will leave both colleciton_parent_path and document_id null.
 
 So that we can query these values efficiently, we'll create the index
 
-```postgresql
+```sql
 CREATE INDEX basic_subscriptions_idx
 ON basic_subscriptions(collection_parent_path, collection_id, document_id);
 ```
@@ -136,10 +136,46 @@ pub fn delete_document(
 }
 ```
 
-We will come back to sending the actual update later in section
+Later in the series, we will show how we will actually deliver updates to these 
+subscriptions. For now, we know that whenever we write to the
+database we can efficiently get the list of subscriptions that need to receive an update.
 
-<update queue section>, but for now we know that whenever we write to the
-database we can efficiently get the list of subscriptions to pass the update to.
+### Subscribing to a query
+
+To actually subscribe to a query in the first place, we will create another table "client_subscriptions",
+
+```sql
+CREATE TABLE client_subscriptions (
+  subscription_id     TEXT,
+  client_id           TEXT
+);
+```
+
+When a client subscribes to a query we will generate a new subscription id and
+put it into this table along with the client's id. Then we insert a new row in `basic_subscriptions` 
+for the query, as shown in this `subscribe_to_document` function
+
+```rust
+pub fn subscribe_to_document(
+  transaction: &mut Transaction,
+  client_id: &str,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+) -> String
+{
+  let subscription_id: String = Uuid::new_v4().as_simple().to_string();
+  transaction.execute("insert into client_subscriptions values ($1, $2)",
+                      &[&subscription_id, &client_id]).unwrap();
+  transaction.execute("insert into basic_subscriptions values ($1, $2, $3, $4)",
+                      &[&collection_parent_path, &collection_id, &document_id, &subscription_id]).unwrap();
+
+  // Todo: send client first batch of subscription data
+  subscription_id
+}
+```
+
+In practice, we would have this subscription funciton also return the initial query results as indicated in the todo.
 
 ### Next up
 
