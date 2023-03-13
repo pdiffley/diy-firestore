@@ -1,8 +1,16 @@
 ### Composite Query Subscriptions
 
-Supporting subscriptions to composite queries is one of the most complex features we will support. To support composite queries by themselves, we just needed to make a table with columns for each of fields we would perform a query over. To support subscriptions however, we need to make a table that supports looking up any type of query we might make on those fields. 
+Supporting subscriptions to composite queries is one of the most complex features we will support.
+ When we added support for composite queries, we just needed to make a table with columns for each 
+ of fields we would perform a query over. To support subscriptions however, we need to make a table 
+ that supports looking up any type of query we might make on those fields. 
 
-To make the range of queries we have to support more manageable, we only allow inequality constraints on the primary field. That said we still have to support any combination of 6 operators (`<`, `<=`,` >`, `>=`, `=`, and `!=`) on that field, which make it difficult to define a concise schema that can desribe all of the queries users are subscribed to. Fortunately, our inequality operators have redudancies and we can consolidate a queries constraints to reduce this complexity significantly.
+To make the range of queries we have to support more manageable, we only allow inequality 
+constraints on the primary field. That said we still have to support any combination of 6 
+operators (`<`, `<=`,` >`, `>=`, `=`, and `!=`) on that field, which make it difficult to
+define a concise schema that can desribe all of the queries users are subscribed to. Fortunately,
+our inequality operators have redudancies and we can consolidate a queries constraints 
+to reduce this complexity significantly.
 
 To show how we will do this, let's imagine putting our field_values on a number line (of sorts)
 

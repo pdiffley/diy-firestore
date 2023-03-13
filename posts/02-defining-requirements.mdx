@@ -1,24 +1,24 @@
-## Defining our requirements
+# Defining our requirements
 
 Before we can talk about implementation details, we need to specify what the
 requirements for our database will be. I will be basing our requirement list
 directly off of Firestore's feature list (the assumption being that we want to
 make a database we could easily migrate to from Firestore). The sections below
 give a lightning round description of the features we will be implementing, and
-specify some **_key terms_** that I will be using over the course of this
+specify some **key terms** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
 to skim or skip to the Summary at the bottom. Alternatively, if you have no idea
-how Firestore works at all, it could be helpful to read the {/* Firestore's docs
-*/} which explain Firestore's features in more detail.
+how Firestore works at all, it could be helpful to read the [Firestore's docs](https://firebase.google.com/docs/firestore)
+which explain Firestore's features in more detail.
 
-### Data Organization
+## Data Organization
 
-##### Documents and Collections
+### Documents and Collections
 
 Our data model is going to be nearly identical to Firestore’s. We will be
-storing **_documents_** of key-value pairs inside **_collections_**. Every
-document will have a string identifier, **_doc_id_** and will be the child of a
-collection with its own string identifier, **_collection_id_**. Consider the
+storing **documents** of key-value pairs inside **collections**. Every
+document will have a string identifier, **document_id** and will be the child of a
+collection with its own string identifier, **collection_id**. Consider the
 chat room example from the
 [Firestore documentation](https://firebase.google.com/docs/firestore/data-model#hierarchical-data).
 
@@ -34,16 +34,16 @@ chat room example from the
   </div>
 </div>
 
-We have a collection with a collection_id "rooms". It holds multiple documents
-which each represent a chat room. The two documents shown have doc_ids "roomA"
-and "roomB". Each of our chat room documents have a **_field_** with the
-**_key_** "name" and a string **_value_** holding the chat room's descriptive
+We have a collection with a collection_id `rooms`. It holds multiple documents
+which each represent a chat room. The two documents shown have doc_ids `roomA`
+and `roomB`. Each of our chat room documents have a **field** with the
+**key** `name` and a string **value** holding the chat room's descriptive
 name.
 
-##### Subcollections
+### Subcollections
 
 Our documents can also have subcollections. In this case, we will give each chat
-room a subcollection, "messages".
+room a subcollection, `messages`.
 
 
 
@@ -99,12 +99,12 @@ room a subcollection, "messages".
 
 
 
-The "messages" subcollection holds all of the messages in the chat room. In this
-case, each message document has three fields, "from", "message", and
-"messageCount" which store the name of the message's sender, the content of the
+The `messages` subcollection holds all of the messages in the chat room. In this
+case, each message document has three fields, `from`, `message`, and
+`messageCount` which store the name of the message's sender, the content of the
 message, and the number of messages that have been sent.
 
-##### Document Identifiers and Uniqueness
+### Document Identifiers and Uniqueness
 
 Documents and collections are uniquely identified in the database by the path
 from their root collection. This includes all parent collections and document
@@ -117,8 +117,8 @@ and the full unique identifier for message1 in roomA is
 `"rooms/roomA/messages/message1"`
 
 We will break these unique identifiers into three components. The first two,
-**_doc_id_** and **_collection_id_**, we have already seen. The third is
-**_collection_parent_path_** and encompasses everything in a documents unique
+**doc_id** and **collection_id**, we have already seen. The third is
+**collection_parent_path** and encompasses everything in a documents unique
 path prior to it's collection. For example, the collection_parent_path for the
 messages collection above is `"rooms/roomA"`. The collection_parent_path for top
 level collections (eg. rooms) is just an empty string.
@@ -131,7 +131,7 @@ and the unique identifier for any document takes the form
 
 `"<collection_parent_path>/<collection_id>/<doc_id>"`
 
-### Data Types
+## Data Types
 
 Firestore allows documents to have values of the following datatypes
 
@@ -150,7 +150,7 @@ we need a consistent way to compare field values with different types. For this
 purpose the different types will be ordered based on their position in the list
 above (ie. a null type is always less than a boolean type which is always less
 than an integer and so on).
-{/* insert interleaving of integer and float types */}
+[ insert interleaving of integer and float types ]
 
 I will be writing client side code samples in Typescript and backend code
 samples in Rust. It is worth noting that because numbers in Typescript are
@@ -159,18 +159,18 @@ the language does not natively support full 64 bit integers, but because all of
 our backend code will be in in Rust, we could still support 64 bit integers in
 other client side languages.
 
-{/* Todo: Note that in a production app we might want to integrate the rust code
+[Todo: Note that in a production app we might want to integrate the rust code
 into database functions through a c interface to avoid making multiple round
-trips between our server and database */}
+trips between our server and database ]
 
-### Queries
+## Queries
 
-Following Firestore's terminolgy {/* add link */}, we will classify queries as
-either **_simple_** or **_compound_** and will allow queries on
-**_collections_** as well as **_collection groups_**.
-{/* specify composite field groups term */}
+Following Firestore's terminolgy [ add link ], we will classify queries as
+either **simple** or **compound** and will allow queries on
+**collections** as well as **collection groups**.
+[ specify composite field groups term ]
 
-##### Simple Queries
+### Simple Queries
 
 Simple queries have only one constraint. Using our message room example from
 above, if we wanted to get all of the messages in roomA that were sent by "alex"
@@ -186,7 +186,7 @@ made (ie. without the need to make a new index for a new query).
 
 ##### Collection Groups
 
-We will also support queries on **_collection groups_**. A collection group is a
+We will also support queries on **collection groups**. A collection group is a
 set of collections that all have the same collection_id. If we wanted to get all
 of the messages sent by "alex" to any chat room, we could write
 
@@ -212,8 +212,8 @@ query(
 ```
 
 Compound queries have some restrictions though. First, we will require that
-fields used in a compound query be specified in advance in a **_composite field
-group_** (see the next section for details). Second, only one field in the query
+fields used in a compound query be specified in advance in a **composite field
+group** (see the next section for details). Second, only one field in the query
 can have a non-equality operator (`<`, `<=`, `>`, `>=`, `!=`) placed on it. All
 other fields can only be constrained by the equality operator. For example, the
 query
@@ -227,10 +227,10 @@ query(
 ```
 
 would not be allowed. But why would you want to exclude Alex anyway? I'll talk
-some more in the {/* additional features section */} about how we might modify
+some more in the [ additional features section ] about how we might modify
 our database to allow for more complex queries.
 
-##### Composite Field Groups
+### Composite Field Groups
 
 For the above query we would specify the composite fields
 
@@ -276,10 +276,10 @@ general form
 ]
 ```
 
-{/* Todo: Remove ASC/DESC support for now, indicate that we will only allow
-inequalities on the first field */}
+[ Todo: Remove ASC/DESC support for now, indicate that we will only allow
+inequalities on the first field ]
 
-### Subscriptions
+## Subscriptions
 
 One of the key features of Firestore is that our client side applications can
 subscribe to changes in collections and queries and be notified with updates are
@@ -330,7 +330,7 @@ This code will read the counter doc update it with the new value and rollback
 and fail if there was contention on the counter document. Like Firestore, we
 will require that all reads made in a transaction be made before any writes.
 
-### Pessimistic Transactions
+## Pessimistic Transactions
 
 Optimistic transactions fail automatically if there is contention around a
 document write. This makes them ill suited for cases where multiple clients are
@@ -348,16 +348,16 @@ instead of queuing the contested transactions and completing them in the order
 they were made. When I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
 should behave, so I am going to put them in the
-{/* additions and improvesments section */}
+[ additions and improvesments section ]
 
 ## Summary
 
-- Our database will store **_documents_** and in heirarchical **_collections_**.
+- Our database will store **documents** and in heirarchical **collections**.
 
-- Collections are uniquely identified by their **_collection_id_** and
-  **_collection_parent_path_**
+- Collections are uniquely identified by their **collection_id** and
+  **collection_parent_path**
 
-- A document is uniquely identified by their **_document_id_** and the unique
+- A document is uniquely identified by their **document_id** and the unique
   identifier of its parent collection
 
 - Documents consist of **fields** with string **keys** and **values** with one
@@ -365,14 +365,14 @@ should behave, so I am going to put them in the
   String, Bytes, Document Reference.
 - We will extend the database to support Array and Map values at the end of the
   series.
-- We will support **_simple queries_** on any field with the operators (`<`,
+- We will support **simple queries** on any field with the operators (`<`,
   `<=`, `>`, `>=`, `==`, `!=`) without the need for fields that are queried to
   be specified in advance
-- We will support **_compound queries_**, but the fields that will be queried
+- We will support **compound queries**, but the fields that will be queried
   need to be specified in advance. Additionally, non-equality operators are only
   allowed on one field in a compound query.
-- Queries can be performed on an individual collections or a **_collection
-  groups_** (group of collections which all have the same collection_id)
+- Queries can be performed on an individual collections or a **collection
+  groups** (group of collections which all have the same collection_id)
 - Client side applications can subscribe to real time updates of documents,
   collections, and queries.
 - We will support client side transactions with optimistic concurrency

@@ -27,10 +27,12 @@ export default function Post({ source }) {
 
 export async function getStaticProps({ params }) {
   const slug = params.slug;
-  const source = fs.readFileSync(
-    path.join(process.cwd(), "posts", `${slug}.mdx`),
-    { encoding: "utf8" }
-  );
+  const filename = fs
+    .readdirSync(path.join(process.cwd(), "posts"))
+    .find((f) => f.includes(slug));
+  const source = fs.readFileSync(path.join(process.cwd(), "posts", filename), {
+    encoding: "utf8",
+  });
   const mdxSource = await serialize(source, {
     mdxOptions: {
       remarkPlugins: [[remarkCodeHike, { autoImport: false, theme }]],
@@ -43,7 +45,7 @@ export async function getStaticProps({ params }) {
 export function getStaticPaths() {
   const posts = fs
     .readdirSync(path.join(process.cwd(), "posts"))
-    .map((page) => page.slice(0, page.length - 4));
+    .map((page) => page.slice(3, page.length - 4));
   return {
     paths: posts.map((slug) => ({ params: { slug: [slug] } })),
     fallback: false,

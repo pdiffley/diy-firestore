@@ -39,7 +39,7 @@ by Postgres, so what is going on here?
 Any field in our document can have multiple data types which makes it difficult
 to store the field values in our table. Like with our protobuf, we need to
 create a type that can represent any of the subtypes that can be assigned to our
-field values. Conveniently, Postgres has a "create type" function that will let
+field values. Conveniently, Postgres has a `CREATE TYPE` function that will let
 us do just that. There are
 [several options](https://www.postgresql.org/docs/current/sql-createtype.html)
 for creating a type. We will create a composite type with type field_value with
@@ -66,7 +66,7 @@ CREATE TYPE field_value AS (
 
 Our field_value type has values that can be set to represent any of the
 datatypes that will be held in our database. We do not have the convenient
-"oneof" feature that protobuf has, but for a given field, we will set the unused
+`oneof` feature that protobuf has, but for a given field, we will set the unused
 types to null. Note that if our value represents a timestamp, both the
 timestamp_nanos and timestamp_seconds field will have a value. We also created a
 `min` and `max` field so that internally, we can have a field value that is

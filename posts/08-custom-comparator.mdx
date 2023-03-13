@@ -2,7 +2,7 @@
 
 ## Create custom comparison operators
 
-In the previous section, we created a custom composite type "field_value".
+In the previous section, we created a custom composite type `field_value`.
 
 ```sql
 CREATE TYPE field_value AS (
@@ -33,7 +33,7 @@ same page.
 **Operator**
 
 An operator is the symbol representing some operation (eg. `>`, `<`, `=`). It is
-the symbol you put in a "where" clause to limit the scope of a query.
+the symbol you put in a `WHERE` clause to limit the scope of a query.
 
 Postgres allows us to define a new operator and associate it with a function
 that will be called when the operator is used. Operators can be overloaded for
@@ -44,12 +44,12 @@ can use the `<` symbol to perform a "less than" operation for example.
 
 Because users can define their own operators, index methods (eg. btree, hashmap,
 gin) are not implemented using hardcoded operators. Instead an index method has
-a numbered list of "strategies" and "support functions" representing operations
+a numbered list of **strategies** and **support functions** representing operations
 a data type needs to support in order to be compatible with the index method.
 For example the
 [btree index method](https://www.postgresql.org/docs/current/btree-behavior.html)
-requires five strategies, 1: "less than", 2: "less than or equal", 3: "equal",
-4: "greater than or equal", and 5: "greater than", but the operator symbols that
+requires five strategies, 1: less than, 2: less than or equal, 3: equal,
+4: greater than or equal, and 5: greater than, but the operator symbols that
 are used to implement those strategies is not hard coded.
 
 To tell the database what operators should be used to create an index for a
@@ -561,7 +561,7 @@ possible categories and an index on that column, the full category string does
 not need to be repeated as a leaf page tuple for every row.
 
 The catch is that for deduplication to be enabled, the comparison function used
-for building an index needs to guarantee "image equality", meaning that two
+for building an index needs to guarantee **image equality**, meaning that two
 values which are considered equal are not just equivalent but are identical and
 can be interchanged without any loss of information. Because we consider a
 field_value with equivalent integer and floating point values to be equal (eg.

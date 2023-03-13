@@ -5,80 +5,80 @@ export default function Index({ Component, pageProps }: AppProps) {
   return (
     <div>
       <h1>Index</h1>
-      <a href="/posts/01-intro" target="_blank">
+      <a href="/posts/intro" target="_blank">
         01-intro
       </a>{" "}
       <br></br>
-      <a href="/posts/02-defining-requirements" target="_blank">
+      <a href="/posts/defining-requirements" target="_blank">
         02-defining-requirements
       </a>{" "}
       <br></br>
-      <a href="/posts/03-the-basic-database" target="_blank">
+      <a href="/posts/the-basic-database" target="_blank">
         {" "}
         03-the-basic-database{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/04-basic-operations" target="_blank">
+      <a href="/posts/basic-operations" target="_blank">
         {" "}
         04-basic-operations{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/05-basic-subscriptions" target="_blank">
+      <a href="/posts/transactions" target="_blank">
         {" "}
-        05-basic-subscriptions{" "}
+        05-transactions{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/06-queries-first-attempt" target="_blank">
+      <a href="/posts/basic-subscriptions" target="_blank">
         {" "}
-        06-queries-first-attempt{" "}
+        06-basic-subscriptions{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/07-custom-comparator" target="_blank">
+      <a href="/posts/queries-first-attempt" target="_blank">
         {" "}
-        07-custom-comparator{" "}
+        07-queries-first-attempt{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/08-simple-queries-take-two" target="_blank">
+      <a href="/posts/custom-comparator" target="_blank">
         {" "}
-        08-simple-queries-take-two{" "}
+        08-custom-comparator{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/09-simple_query-subscriptions" target="_blank">
+      <a href="/posts/simple-queries-take-two" target="_blank">
         {" "}
-        09-simple_query-subscriptions{" "}
+        09-simple-queries-take-two{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/10-composite-queries" target="_blank">
+      <a href="/posts/simple_query-subscriptions" target="_blank">
         {" "}
-        10-composite-queries{" "}
+        10-simple_query-subscriptions{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/11-composite-subscriptions" target="_blank">
+      <a href="/posts/composite-queries" target="_blank">
         {" "}
-        11-composite-subscriptions{" "}
+        11-composite-queries{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/12-subscription-update-queues" target="_blank">
+      <a href="/posts/composite-subscriptions" target="_blank">
         {" "}
-        12-subscription-update-queues{" "}
+        12-composite-subscriptions{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/13-client-connection-server" target="_blank">
+      <a href="/posts/subscription-update-queues" target="_blank">
         {" "}
-        13-client-connection-server{" "}
+        13-subscription-update-queues{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/14-transactions" target="_blank">
+      <a href="/posts/client-connection-server" target="_blank">
         {" "}
-        14-transactions{" "}
+        14-client-connection-server{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/15-security-rules" target="_blank">
+      <a href="/posts/security-rules" target="_blank">
         {" "}
         15-security-rules{" "}
       </a>{" "}
       <br></br>
-      <a href="/posts/16-bonus-features-and-configurability" target="_blank">
+      <a href="/posts/bonus-features-and-configurability" target="_blank">
         {" "}
         16-bonus-features-and-configurability{" "}
       </a>{" "}
