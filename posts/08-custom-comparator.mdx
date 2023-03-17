@@ -1,3 +1,7 @@
+---
+title: Building a Custom Comparator
+index: 8
+---
 # DIY Firestore
 
 ## Create custom comparison operators
@@ -48,7 +52,8 @@ a numbered list of **strategies** and **support functions** representing operati
 a data type needs to support in order to be compatible with the index method.
 For example the
 [btree index method](https://www.postgresql.org/docs/current/btree-behavior.html)
-requires five strategies, 1: less than, 2: less than or equal, 3: equal,
+requires [five strategies](https://www.postgresql.org/docs/current/xindex.html#XINDEX-BTREE-STRAT-TABLE), 
+1: less than, 2: less than or equal, 3: equal,
 4: greater than or equal, and 5: greater than, but the operator symbols that
 are used to implement those strategies is not hard coded.
 
@@ -115,8 +120,9 @@ languages though!
 
 Before we implement comparison operators for field_value we will first write a
 generic comparison function `field_value_cmp`. Our comparison function will take
-two field_values, **a** and **b**, and return -1 if **a** is less than **b**, 0
-if **a** equals **b**, and 1 if **a** is greater than **b**.
+two field_values, `a` and `b`. If `a` is greater than `b` the function will return `1`. 
+If `a` is less than `b` the function will return `-1`. 
+If `a` equals `b`, the function will return `0`. 
 
 We'll start by writing some helper functions to compare the native types that
 field_value is composed of. These functions all do pretty much the same thing,
@@ -572,7 +578,7 @@ It is possible to alter our comparison functions so that we can enable
 deduplication, but when then need to take that into account when writing the
 code to support queries. To avoid that complexity, I am just leaving
 deduplication off for now. I'll revisit this and go over the modifcations we
-would need to make to support deduplication later in the [bonus section]. If you
+would need to make to support deduplication later in [Bonus Features and Configurability](/posts/bonus-features-and-configurability). If you
 are interested in the detail of how Postgres handles deduplication,
 [the docs](https://www.postgresql.org/docs/current/btree-implementation.html#BTREE-DEDUPLICATION)
 explain it quite well.

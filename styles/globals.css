@@ -1,9 +1,13 @@
 main {
-  max-width: 750px;
   margin: auto;
   padding: 40px;
   font-family: Georgia, "Times New Roman", Times, serif;
   line-height: 1.6em;
+}
+
+article {
+  max-width: 750px;
+  align-content: flex-end;
 }
 
 h1 {
@@ -32,14 +36,14 @@ h1 {
 }
 
 .document-name {
-  margin-top: .2rem;
+  margin-top: 0.2rem;
 }
 
 code {
-  font-family: 'SF Mono Medium', 'Fira Code', 'Cousine', 'Consolas', monospace;
+  font-family: "SF Mono Medium", "Fira Code", "Cousine", "Consolas", monospace;
   /* background-color: #ededf5; */
   background-color: #f0f0fc;
-  
+
   padding: 0.125rem;
   border-radius: 0.25rem;
 }
