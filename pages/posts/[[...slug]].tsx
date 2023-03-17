@@ -10,35 +10,73 @@ import { CH } from "@code-hike/mdx/components";
 import theme from "shiki/themes/dracula-soft.json";
 import * as matter from "gray-matter";
 
-export default function Post({ source, title, postsData }) {
+import {
+  content,
+  homeLink,
+  nav,
+  article,
+  footer,
+} from "../../styles/post.module.css";
+
+type Post = {
+  index: number;
+  title: string;
+  slug: string;
+};
+
+type Props = {
+  source: Awaited<ReturnType<typeof serialize>>;
+  title: string;
+  previousPost: Post;
+  nextPost: Post;
+};
+
+export default function Post({ source, title, previousPost, nextPost }: Props) {
   return (
     <>
       <Head>
         <title>DIY Firestore: {title}</title>
       </Head>
-      <main>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-around",
-          }}
-        >
-          <nav style={{ alignItems: "flex-start" }}>
-            <div>
-              <Link href="/">Home</Link>
-            </div>
-            {postsData.map(({ title, slug }) => (
-              <div key={slug}>
-                <Link href={`/posts/${slug}`}>{title}</Link>
-              </div>
-            ))}
-          </nav>
-          <article>
+      <div className={content}>
+        <nav className={nav}>
+          <div className={homeLink}>
+            <Link href="/">DIY Firestore</Link>
+          </div>
+          <div>
+            {previousPost && (
+              <Link href={`/posts/${previousPost.slug}`}>
+                &larr; {previousPost.title}
+              </Link>
+            )}
+            {previousPost && nextPost && " | "}
+            {nextPost && (
+              <Link href={`/posts/${nextPost.slug}`}>
+                {nextPost.title} &rarr;
+              </Link>
+            )}
+          </div>
+        </nav>
+        <main id="main-content">
+          <article className={article}>
             <MDXRemote {...source} components={{ CH, Image }} />
           </article>
-        </div>
-      </main>
+        </main>
+        <footer className={footer}>
+          <div>
+            {previousPost && (
+              <Link href={`/posts/${previousPost.slug}`}>
+                &larr; {previousPost.title}
+              </Link>
+            )}
+            {previousPost && nextPost && " | "}
+            {nextPost && (
+              <Link href={`/posts/${nextPost.slug}`}>
+                {nextPost.title} &rarr;
+              </Link>
+            )}
+          </div>
+        </footer>
+      </div>
     </>
   );
 }
@@ -50,17 +88,15 @@ export async function getStaticProps({ params }) {
   const source = fs.readFileSync(path.join(process.cwd(), "posts", filename), {
     encoding: "utf8",
   });
-  const postsData = filenames
-    .map((x) => {
-      const contents = fs.readFileSync(path.join(process.cwd(), "posts", x), {
-        encoding: "utf8",
-      });
-      return {
-        ...matter(contents).data,
-        slug: x.slice(3, x.length - 4),
-      };
-    })
-    .sort(({ index: a }, { index: b }) => a - b);
+  const postsData = filenames.map((x) => {
+    const contents = fs.readFileSync(path.join(process.cwd(), "posts", x), {
+      encoding: "utf8",
+    });
+    return {
+      ...matter(contents).data,
+      slug: x.slice(3, x.length - 4),
+    };
+  });
 
   const { content, data } = matter(source);
   const mdxSource = await serialize(content, {
@@ -69,7 +105,11 @@ export async function getStaticProps({ params }) {
       useDynamicImport: true,
     },
   });
-  return { props: { source: mdxSource, ...data, postsData } };
+  const previousPost =
+    postsData.find(({ index }) => index === data.index - 1) ?? null;
+  const nextPost =
+    postsData.find(({ index }) => index === data.index + 1) ?? null;
+  return { props: { source: mdxSource, ...data, previousPost, nextPost } };
 }
 
 export function getStaticPaths() {

@@ -1,0 +1,12 @@
+.main {
+  max-width: 600px;
+  margin: auto;
+}
+
+.blogSummary {
+  font-size: 1.25rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+}

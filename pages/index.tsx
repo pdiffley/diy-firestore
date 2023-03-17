@@ -1,88 +1,53 @@
-import "@code-hike/mdx/dist/index.css";
-import type { AppProps } from "next/app";
+import fs from "fs";
+import path from "path";
+import * as matter from "gray-matter";
+import Link from "next/link";
 
-export default function Index({ Component, pageProps }: AppProps) {
+import "@code-hike/mdx/dist/index.css";
+import { main, blogSummary, header, nav } from "../styles/index.module.css";
+
+export default function Index({
+  postsData,
+}: {
+  postsData: Array<{ title: string; slug: string; subtitle: string }>;
+}) {
   return (
-    <div>
-      <h1>Index</h1>
-      <a href="/posts/intro" target="_blank">
-        01-intro
-      </a>{" "}
-      <br></br>
-      <a href="/posts/defining-requirements" target="_blank">
-        02-defining-requirements
-      </a>{" "}
-      <br></br>
-      <a href="/posts/the-basic-database" target="_blank">
-        {" "}
-        03-the-basic-database{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/basic-operations" target="_blank">
-        {" "}
-        04-basic-operations{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/transactions" target="_blank">
-        {" "}
-        05-transactions{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/basic-subscriptions" target="_blank">
-        {" "}
-        06-basic-subscriptions{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/queries-first-attempt" target="_blank">
-        {" "}
-        07-queries-first-attempt{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/custom-comparator" target="_blank">
-        {" "}
-        08-custom-comparator{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/simple-queries-take-two" target="_blank">
-        {" "}
-        09-simple-queries-take-two{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/simple_query-subscriptions" target="_blank">
-        {" "}
-        10-simple_query-subscriptions{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/composite-queries" target="_blank">
-        {" "}
-        11-composite-queries{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/composite-subscriptions" target="_blank">
-        {" "}
-        12-composite-subscriptions{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/subscription-update-queues" target="_blank">
-        {" "}
-        13-subscription-update-queues{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/client-connection-server" target="_blank">
-        {" "}
-        14-client-connection-server{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/security-rules" target="_blank">
-        {" "}
-        15-security-rules{" "}
-      </a>{" "}
-      <br></br>
-      <a href="/posts/bonus-features-and-configurability" target="_blank">
-        {" "}
-        16-bonus-features-and-configurability{" "}
-      </a>{" "}
-      <br></br>
-    </div>
+    <main className={main}>
+      <header className={header}>
+        <h1>DIY Firestore</h1>
+        <p className={blogSummary}>
+          A series of blog posts about building a Firestore-like database from
+          scratch. How hard could it be?
+        </p>
+        <p>by Phillip Diffley</p>
+      </header>
+      <nav className={nav}>
+        {postsData.map(({ title, slug, subtitle }) => (
+          <div key={slug}>
+            <h2>
+              <Link href={`/posts/${slug}`}>{title}</Link>
+            </h2>
+            <p>{subtitle}</p>
+          </div>
+        ))}
+      </nav>
+    </main>
   );
+}
+
+export async function getStaticProps() {
+  const filenames = fs.readdirSync(path.join(process.cwd(), "posts"));
+  const postsData = filenames
+    .map((x) => {
+      const contents = fs.readFileSync(path.join(process.cwd(), "posts", x), {
+        encoding: "utf8",
+      });
+      return {
+        ...matter(contents).data,
+        slug: x.slice(3, x.length - 4),
+      };
+    })
+    .sort(({ index: a }, { index: b }) => a - b);
+
+  return { props: { postsData } };
 }

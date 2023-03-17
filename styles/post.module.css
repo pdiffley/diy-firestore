@@ -1,0 +1,58 @@
+.content {
+  max-width: 700px;
+  margin: auto;
+}
+
+.homeLink {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.nav a,
+.footer a {
+  text-decoration: none;
+}
+
+.nav a:hover,
+.footer a:hover {
+  text-decoration: underline;
+}
+
+.nav {
+  margin: 2rem 0 4rem;
+}
+
+.article :global(h1) {
+  font-size: 2rem;
+}
+
+.article :global(.collection) {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.article :global(.collections-tabbed) {
+  margin-left: 2rem;
+}
+
+.article :global(.document-title) {
+  display: flex;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.article :global(.document-name) {
+  margin-top: 0.2rem;
+}
+
+.article :global(code:not(.ch-code-scroll-parent)) {
+  font-family: "SF Mono Medium", "Fira Code", "Cousine", "Consolas", monospace;
+  /* background-color: #ededf5; */
+  background-color: #f0f0fc;
+
+  padding: 0.125rem;
+  border-radius: 0.25rem;
+}
+
+.footer {
+  margin: 2rem 0 6rem;
+}
