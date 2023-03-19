@@ -1,12 +1,16 @@
 ---
-title: Basic Writes and Reads
+title: Writes and Reads
 index: 4
 ---
+
+# Writes and Reads
+Now that we have a table that we can store our documents in, we can create the functions
+to add documents to the database and read them back.
+
 ## Writing to the database
 
-Now that we have a table that we can store our documents in, let's provide our
-functions to write to the database. We will put most of our write operations
-into two functions, create_document and delete_document.
+We will put most of our write operations
+into two functions, `create_document` and `delete_document`.
 
 ```rust
 fn create_document(
@@ -64,6 +68,8 @@ fn delete_document(
 }
 ```
 
+Right now these functions just take a document and insert or delete it from the documents table.
+
 We will also provide a generic write function that will either create a new
 document, or update an existing document depending on the state of the database.
 
@@ -84,8 +90,10 @@ fn write_document(
 }
 
 ```
+The `delete_document` function is already a no-op if the specified document does not exist,
+so we don't need to perform that check in the `write_document` function. 
 
-Our write functions are simple right now, but we will be expanding them so that
+Our write functions are simple right now, but we will be expanding them over the course of this series so that
 they end up doing most of the heavy lifting for our databse.
 
 ### Reading from the database
@@ -125,7 +133,9 @@ pub fn get_documents(
   -> Vec<Document>
 {
   let document_ids: Vec<String> = transaction.query(
-    "select document_id from documents where collection_parent_path = $1 and collection_id = $2",
+    "select document_id 
+    from documents 
+    where collection_parent_path = $1 and collection_id = $2",
     &[&collection_parent_path, &collection_id]).unwrap().into_iter()
     .map(|row| row.get(0))
     .collect();
@@ -143,7 +153,9 @@ pub fn get_documents_from_collection_group(
   -> Vec<Document>
 {
   let document_id_rows: Vec<_> = transaction.query(
-    "select collection_parent_path, document_id from documents where collection_id = $1",
+    "select collection_parent_path, document_id 
+    from documents 
+    where collection_id = $1",
     &[&collection_id],
   ).unwrap();
 
@@ -152,8 +164,9 @@ pub fn get_documents_from_collection_group(
     .collect();
   documents
 }
-
 ```
+Most of the work in these functions is done by the sql queries 
+which retrieve data from the documents table based on the specified identifiers.
 
 ### All together
 

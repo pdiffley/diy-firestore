@@ -335,8 +335,7 @@ to retry and will ultimately fail if the 5 retry limit is reached. This is
 instead of queuing the contested transactions and completing them in the order
 they were made. Personally, when I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
-should behave. We will take a quick look at how we could support full sql-like 
-pessimistic transactions in our database
+should behave. We are going to leave pessimistic transactions out of this series' implementation.
 
 ## Client Libraries
 
