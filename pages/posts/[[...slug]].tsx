@@ -42,7 +42,7 @@ export default function Post({ source, title, previousPost, nextPost }: Props) {
           <div className={homeLink}>
             <Link href="/">DIY Firestore</Link>
           </div>
-          <div>
+          {/* <div>
             {previousPost && (
               <Link href={`/posts/${previousPost.slug}`}>
                 &larr; {previousPost.title}
@@ -54,7 +54,7 @@ export default function Post({ source, title, previousPost, nextPost }: Props) {
                 {nextPost.title} &rarr;
               </Link>
             )}
-          </div>
+          </div> */}
         </nav>
         <main id="main-content">
           <article className={article}>

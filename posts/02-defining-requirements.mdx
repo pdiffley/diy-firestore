@@ -6,8 +6,7 @@ index: 2
 
 Before we can talk about implementation details, we need to specify what the
 requirements for our database will be. I will be basing our requirement list
-directly off of Firestore's feature list (the assumption being that we want to
-make a database we could easily migrate to from Firestore). The sections below
+directly off of Firestore's feature list. The sections below
 give a lightning round description of the features we will be implementing, and
 specify some **key terms** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
@@ -39,7 +38,7 @@ chat room example from the
 </div>
 
 We have a collection with a collection_id `rooms`. It holds multiple documents
-which each represent a chat room. The two documents shown have doc_ids `roomA`
+which each represent a chat room. The two documents shown have document_id `roomA`
 and `roomB`. Each of our chat room documents have a **field** with the
 **key** `name` and a string **value** holding the chat room's descriptive
 name.
@@ -114,65 +113,62 @@ Documents and collections are uniquely identified in the database by the path
 from their root collection. This includes all parent collections and document
 ids.
 
-For example, the full unique identifier for the messages collection in roomA is
-`"rooms/roomA/messages"`
+For example, the full unique identifier for the `messages` collection in `roomA` is
+`"/rooms/roomA/messages"`
 
-and the full unique identifier for message1 in roomA is
-`"rooms/roomA/messages/message1"`
+and the full unique identifier for `message1` in `roomA` is
+`"/rooms/roomA/messages/message1"`
 
 We will break these unique identifiers into three components. The first two,
-**doc_id** and **collection_id**, we have already seen. The third is
+**document_id** and **collection_id**, we have already seen. The third is
 **collection_parent_path** and encompasses everything in a documents unique
 path prior to it's collection. For example, the collection_parent_path for the
-messages collection above is `"rooms/roomA"`. The collection_parent_path for top
+messages collection above is `"/rooms/roomA"`. The collection_parent_path for top
 level collections (eg. rooms) is just an empty string.
 
 In general the unique identifier for any collection takes the form
 
-`"<collection_parent_path>/<collection_id>/"`
+`"/<collection_parent_path>/<collection_id>/"`
 
 and the unique identifier for any document takes the form
 
-`"<collection_parent_path>/<collection_id>/<doc_id>"`
+`"/<collection_parent_path>/<collection_id>/<document_id>"`
 
 ## Data Types
 
 Firestore allows documents to have values of the following datatypes
 
-Null Boolean 64 bit Integer 64 bit Float DateTime String Bytes Document
-Reference Geographic Point Array Map
+Null  
+Boolean  
+64 bit Integer  
+64 bit Float  
+DateTime  
+String  
+Bytes  
+Document Reference  
+Geographic Point  
+Array  
+Map
 
-We will support all of these types except the Array, Map, and Geographic Point.
+We will support all of these types except Array, Map, and Geographic Point.
 Supporting Array and Map types is very doable, but including these types
 initially will muddle the explanation of some the more fundamental concepts our
-database will utilize. I will add a section at the end of the series where we
-add support for Array and Map types. The geographic point type is currently not
+database will utilize. The geographic point type is currently not
 recommended for use, so I am just going to ignore it entirely.
 
 Because documents can have values with different types for the same field key,
 we need a consistent way to compare field values with different types. For this
 purpose the different types will be ordered based on their position in the list
 above (ie. a null type is always less than a boolean type which is always less
-than an integer and so on).
-[ insert interleaving of integer and float types ]
-
-I will be writing client side code samples in Typescript and backend code
-samples in Rust. It is worth noting that because numbers in Typescript are
-[represented by 64 bit floats](https://262.ecma-international.org/6.0/#sec-terms-and-definitions-number-value),
-the language does not natively support full 64 bit integers, but because all of
-our backend code will be in in Rust, we could still support 64 bit integers in
-other client side languages.
-
-[Todo: Note that in a production app we might want to integrate the rust code
-into database functions through a c interface to avoid making multiple round
-trips between our server and database ]
+than an integer and so on). The only exception to this is that integers and floats
+will be ordered based on their numberic value (eg. `1 < 2.5 < 3 < 3.5`).
 
 ## Queries
 
-Following Firestore's terminolgy [ add link ], we will classify queries as
-either **simple** or **compound** and will allow queries on
-**collections** as well as **collection groups**.
-[ specify composite field groups term ]
+Following [Firestore's terminolgy](https://firebase.google.com/docs/firestore/query-data/queries), 
+we will classify queries as either **simple** or **compound** and will allow queries on
+**collections** as well as **collection groups**. A collection group is any group of collections
+that have the same collection_id.
 
 ### Simple Queries
 
@@ -186,22 +182,22 @@ query("rooms/roomA/messages", where("from", "=", "alex"));
 
 We will support simple queries on all document fields for the operators `<`,
 `<=`, `>`, `>=`, `==`, and `!=` without advanced notice that the query will be
-made (ie. without the need to make a new index for a new query).
+made (ie. without the need to make a new index for the query).
 
-##### Collection Groups
+### Collection Groups
 
 We will also support queries on **collection groups**. A collection group is a
 set of collections that all have the same collection_id. If we wanted to get all
 of the messages sent by "alex" to any chat room, we could write
 
-```
+```typescript
 query(collectionGroup('messages'), where('from', '=', 'alex'))
 ```
 
 This will retrieve all of the messages with sender "alex" from all messages
 subcollections.
 
-##### Compound Queries
+### Compound Queries
 
 Compound queries allow you to specify multiple constraints. If we wanted to get
 messages sent by "alex" that were in the first 500 messages sent to roomA we
@@ -230,58 +226,46 @@ query(
 );
 ```
 
-would not be allowed. But why would you want to exclude Alex anyway? I'll talk
-some more in the [ additional features section ] about how we might modify
-our database to allow for more complex queries.
+would not be allowed. But why would you want to exclude Alex anyway?
 
 ### Composite Field Groups
 
-For the above query we would specify the composite fields
+Before we can make a compound query on a set of fields, we will require the user
+to specifiy a **composite field group**, this will allow us to make the tables 
+and indexes required to support the query. For the above query, we would specify the 
+composite fields
 
 ```typescript
 {
-  collectionId: "messages",
+  collectionPath: "/rooms/roomA/messages",
   groupType: "COLLECTION",
-  fields: {"from": "ASC", "messageCount": "ASC"}
+  fields: ["from", "messageCount"]
 }
 ```
-
-Here we indicate that we are specifying a group of composite fields for all
-individual collections with collection_id "messages", and that we want include
+Here we indicate that we are specifying we want to run queries on the 
+collection `/rooms/roomA/messages`, and that we want include
 the fields "from" and "messageCount" in a single query.
 
-Alternatively, if we wanted to run the compound query on the collection group
-"messages" we would specify
+This only lets us run queries on one `messages` collection though (the one that 
+is a child to `roomA`). Most likely, we would want to run queries on all `messages`
+collections. To do that we would specify the composite group below.
 
 ```typescript
 {
-  collectionId: "messages",
+  collectionPath: "messages",
   groupType: "COLLECTION_GROUP",
-  fields: {"from": "ASC", "messageCount": "ASC"}
+  fields: ["from", "messageCount"]
 }
 ```
+Here we indicate that we are specifying the group of composite fields for all
+individual collections with collection_id `messages`. We can the run queries over
+that collection group.
 
-We can also specify "DESC" instead of "ASC" if we want the fields to be sorted
-in a different order relative to each other.
-
-We will just say that we have json config file that we deploy with the database
-specifying all of the composite fields that will be queried. For a production
-database, we would want to be able to update this config dynamically, but we do
-not need to worry about the details of that right now. This file would take the
-general form
-
-```typescript
-[
-{
-	collectionId: "<collection_id>",
-	groupType: "COLLECTION"|COLLECTION_GROUP"
-	fields: {"<field key>": "ASC|"DESC", ...}
-}, ...
-]
-```
-
-[ Todo: Remove ASC/DESC support for now, indicate that we will only allow
-inequalities on the first field ]
+In this series, we are going to assume that we have already parsed a config file that 
+specifies all of the composite groups that will be queried. For a production
+database, we would want to be able to update this config dynamically and also be able to specify
+the relative order that the fields will be sorted in by default, but those two features will be
+out of scope for this series.
 
 ## Subscriptions
 
@@ -308,31 +292,31 @@ let unsubscribeHandler = onSnapshot(q, (querySnapshot) => {
 
 Every time Alex sends a message to the chat room, the results of the query will
 change and our subscription will receive the updated list of messages. Once new
-messages from Alex have a messageCount greater than 500, the subscription will
+messages from Alex have a `messageCount` greater than 500, the subscription will
 stop firing because a new message will not change the query results.
 
 We will also support subscriptions to changes in individual documents,
 collections, and collection groups.
 
-### Optimistic Transactions
+## Optimistic Transactions
 
-Like firestore, we will support client side transactions with
+Like Firestore, we will support client side transactions with
 [optimistic concurrency](https://firebase.google.com/docs/firestore/transaction-data-contention#data_contention_in_the_mobileweb_sdks).
-For example, if we wanted our client side app to be able to update the "count"
-field in the document "counter" in collection "counter_collection", we could
+For example, if we wanted our client side app to be able to update the `count`
+field in the document `counter` in collection `counter_collection`, we could
 write the transaction
 
 ```typescript
 await runTransaction(db, async (transaction) => {
-  let counterDoc = await transaction.get("counter_collection/counter");
+  let counterDoc = await transaction.get("/counter_collection/counter");
   let currentCount = counterDoc.data().count;
-  transaction.update("counter_collection/counter", { count: currentCount + 1 });
+  transaction.update("/counter_collection/counter", { count: currentCount + 1 });
 });
 ```
 
-This code will read the counter doc update it with the new value and rollback
-and fail if there was contention on the counter document. Like Firestore, we
-will require that all reads made in a transaction be made before any writes.
+This code will read the counter document, update it with the new value and rollback
+if there was contention. Like Firestore, we will require that all reads made in a 
+transaction be made before any writes.
 
 ## Pessimistic Transactions
 
@@ -351,8 +335,13 @@ to retry and will ultimately fail if the 5 retry limit is reached. This is
 instead of queuing the contested transactions and completing them in the order
 they were made. When I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
-should behave, so I am going to put them in the
-[ additions and improvesments section ]
+should behave, so I am going to put them in the`TODO: Insert LINK!` [bonus features section]();
+
+## Client Libraries
+
+Firestore's client libraries play an important role in making the database useable,
+manageing subscriptions and transactions for example. However, in this series, I will 
+only be demonstrating the server side code needed to support the database.
 
 ## Summary
 
@@ -367,8 +356,6 @@ should behave, so I am going to put them in the
 - Documents consist of **fields** with string **keys** and **values** with one
   of the following types: null, boolean, 64 bit integer, 64 bit float, DateTime,
   String, Bytes, Document Reference.
-- We will extend the database to support Array and Map values at the end of the
-  series.
 - We will support **simple queries** on any field with the operators (`<`,
   `<=`, `>`, `>=`, `==`, `!=`) without the need for fields that are queried to
   be specified in advance
@@ -380,11 +367,8 @@ should behave, so I am going to put them in the
 - Client side applications can subscribe to real time updates of documents,
   collections, and queries.
 - We will support client side transactions with optimistic concurrency
-- Bonus Features:
 
-​ pessimistic transactions that will block until complete
-
-Now that we know what we are building, let's put together the foundation of our
+Now that we know what we are building, we can put together the foundation of our
 database!
 
 ​

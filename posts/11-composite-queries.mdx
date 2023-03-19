@@ -49,11 +49,11 @@ query('users',
 To support this query, we would first specify the composite field group in a
 config file like so
 
-```
+```typescript
 {
   collectionPath: "users",
   groupType: "COLLECTION",
-  fields: [{"age"}, {"city"}, {"user_name"}, {"zipcode"}]
+  fields: ["age", "city", "user_name", "zipcode"]
 }
 ```
 

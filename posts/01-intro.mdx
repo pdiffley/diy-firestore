@@ -2,7 +2,7 @@
 title: Intro
 index: 1
 ---
-# DIY Firestore
+# Getting Started
 **_How hard could it be?_**
 
 {/* image of wrench bucket -> fire */}
@@ -24,17 +24,17 @@ But first,
 
 ## Why would we do this?
 
-It’s a fair question. Firestore is flush with features, so why would we go
+It's a fair question. Firestore is flush with features, so why would we go
 through the effort of implementing a system that does pretty much the same
 thing?
 
-### It’s fun!
+### It's fun!
 
 Just had to get this out of the way. I am mostly just writing this for fun.
 Firestore is a pretty cool system to investigate, so I hope you enjoy reading
 about how I go about implementing it!
 
-### You’re not on gcp
+### You're not on gcp
 
 Firestore is a GCP product and does not have a direct equivalent in other cloud
 providers. If all of your apps and services are based in AWS for example, you
@@ -53,34 +53,28 @@ want to continue using a data management system like Firestore but need to tweak
 parameters of the system to make it more performant and scalable for your use
 case.
 
-TODO: Note that we can have increased configurability because we are deploying
-our own dedicated version of the db where we pay for the cloud resources rather
-than being a single user on a large running system where we pay per operation.
 Cloud Firestore is designed to get you up and running quickly. You don't need to
 worry about deploying your database or allocating resources for it. You just
 make a project and then pay per read and write. This cost model is convenient
 for getting a project started quickly, but it limits that amount of
-configurability you can have.
+configurability you can have. A cost model where you pay for the underlying 
+infrastructure supporting your database rather than paying per read and write
+opens up a lot of opens for configurability.
 
 ### You're cloud costs are too high
 
 Firestore is designed to be highly scalable and have a low barrier to entry, but
 it is also quite expensive. This likely doesn't matter when you are just
-starting a company and want to get up and running quickly, but as your cloud
-costs Firestore's high price per read/write could become a problem. Over the
+starting a company and want to get up and running quickly, but as your traffic 
+grows, Firestore's high price per read and write could become a problem. Over the
 course of this series, we will see how Firestore's default features incur a lot
 of overhead whether you are using them or not. Firestore let's you turn some of
 these features off, but many of them are on no matter what. Running a customized
 version of Firestore would give you the transparency needed to understand what
 operations are expensive and allow you to turn off expensive features that you
-don't need.
+don't need. 
 
-In most of these cases, it would not be worthwhile for an individual company to
-build their own version of Firestore. If you ran into these issues, you would
-likely have to eat the cost of migrating to a more traditional backend
-infrastructure. But if a configurable open source version of Firestore already
-existed, you could potentially resolve your issues without having to restructure
-your entire system design. At the end of this series, I will show some examples
+At the end of this series, I will show some examples
 of how we could customize our database to suit our needs in a way that Firestore
 might not.
 
@@ -96,15 +90,11 @@ solution. Instead, I want to convey how we could overcome the key technical
 hurdles that get in the way of making a database like Firestore, and to that
 end, will opt for clarity over performance. Likewise, code samples I include
 will be correct, but won't be production ready. I will assume that all inputs
-and validated and well formatted and will generally ignore error handling.
+and validated and well formatted and the general approach to error handling 
+will be to panic.
 
-**I also want to note in advance that I do not have any inside knowledge of how
+I also want to note in advance that I do not have any inside knowledge of how
 Firestore is implemented. This series is just me taking a stab at how I would
-build a similar product.**
+build a similar product.
 
-My goal is that by the end of reading this, you will have a sense of how you
-would go about building a data management system like firestore, and feel like
-you could extend the implementation described here to include specifics feature
-you need.
-
-With that out of the way, let’s dive right in! ... to defining our requirements
+With that out of the way, let's dive right in! ... to defining our requirements
