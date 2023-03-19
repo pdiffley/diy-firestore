@@ -2,27 +2,25 @@
 title: 'Simple Queries: Take Two'
 index: 9
 ---
-# DIY Firestore
+# Simple Queries: Take Two
 
-## Queries: Take Two
-
-In the last two sections, we made a user define composite type, field_value,
+In the last two sections, we created a user defined composite type, field_value,
 that can hold any of our document data types, and we created a custom operator
 class for that type so that Postgres can correctly sort and index those values.
 With our custom type in hand, we can provide support for querying our documents.
 
 ## Simple Queries
 
-We'll start by creating the lookup table from [first query section]
+Recall that we have already created the table `simple_query_lookup`
 
 ```sql
-CREATE TABLE simple_query_subscriptions (
+CREATE TABLE simple_query_lookup (
   collection_parent_path      TEXT,
   collection_id               TEXT,
+  document_id                 TEXT,
   field_name                  TEXT,
-  field_operator              TEXT,
   field_value                 field_value,
-  subscription_id             TEXT
+  PRIMARY KEY (collection_parent_path, collection_id, document_id, field_name)
 );
 ```
 
@@ -30,8 +28,10 @@ We will support queries on collections and collection groups with the following
 indexes.
 
 ```sql
-CREATE INDEX simple_query_collection_subscription_idx ON
-simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
+CREATE INDEX simple_query_idx ON simple_query_lookup(collection_id, field_name, 
+  field_value, collection_parent_path);
+CREATE INDEX simple_query_deletion_idx ON simple_query_lookup(
+  collection_parent_path, collection_id, document_id);
 ```
 
 Then we can efficiently query a collection or collection group for a particular
@@ -94,15 +94,16 @@ fn add_document_to_simple_query_table(
     let field_value = field_value_proto_to_sql(&field_value);
     transaction.execute(
       "insert into simple_query_lookup values ($1, $2, $3, $4, $5)",
-      &[&collection_parent_path, &collection_id, &document_id, &field_name, &field_value]).unwrap();
+      &[&collection_parent_path, &collection_id, &document_id, &field_name, 
+      &field_value]).unwrap();
   }
 }
 ```
 
 Then we'll add it to our add document function so that whenever we insert a new
-document to postgres, we also update the fields in
+document to Postgres, we also update the fields in
 
-```rust
+```rust focus=13
 fn create_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -141,7 +142,7 @@ fn delete_document_from_simple_query_table(
 
 ```
 
-```rust
+```rust focus=9
 pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,

@@ -2,23 +2,24 @@
 title: Composite Query Subscriptions
 index: 12
 ---
-### Composite Query Subscriptions
+# Composite Query Subscriptions
 
 Supporting subscriptions to composite queries is one of the most complex features we will support.
- When we added support for composite queries, we just needed to make a table with columns for each 
- of fields we would perform a query over. To support subscriptions however, we need to make a table 
- that supports looking up any type of query we might make on those fields. 
+When we added support for composite queries, we just needed to make a table with columns for each 
+of fields we would perform a query over. To support subscriptions however, we need to make a table 
+that supports looking up any type of query we might make on those fields. 
 
+## Primary Constraints
 To make the range of queries we have to support more manageable, we only allow inequality 
 constraints on the primary field. That said we still have to support any combination of 6 
-operators (`<`, `<=`,` >`, `>=`, `=`, and `!=`) on that field, which make it difficult to
-define a concise schema that can desribe all of the queries users are subscribed to. Fortunately,
+operators (`<`, `<=`,` >`, `>=`, `=`, and `!=`) on that field, which makes it difficult to
+define a concise schema that can describe all of the queries users are subscribed to. Fortunately,
 our inequality operators have redudancies and we can consolidate a queries constraints 
 to reduce this complexity significantly.
 
 To show how we will do this, let's imagine putting our field_values on a number line (of sorts)
 
-[number line with min and max]
+<Image src="/images/number-line.svg" alt="drawing" height="100" width="600" />
 
 All the way to the left we have our designated minimum value, and all the way to
 the right, we have the maximum value.
@@ -26,7 +27,7 @@ the right, we have the maximum value.
 Now let's imagine that we place two greater than constraints on the field_value in
 our query. `x > a` and `x > b` where `a < b`
 
-`<number line with two greater than constraints>`
+<Image src="/images/number-line-inequality.svg" alt="drawing" height="100" width="600" />
 
 It's immediately apparent that we have some redundancy here. Regardless of how
 many "greater than" constraints we put on our field value, only the one with the
@@ -36,13 +37,11 @@ operators as well.
 
 We still have two types of greater than operator though, "greater than" and "greater than
 or equal to". Notice that the greater than operation can also be expressed as a
-combination of the `>=` operation and a `!=` operation.
-
-That is `x > a` is equivalent to `x >= a AND x != a`. So anytime we receive a
+combination of the `>=` operation and a `!=` operation. That is, `x > a` is equivalent to `x >= a AND x != a`. So anytime we receive a
 query with a `>` operator we can convert is to be written in terms of the `>=`
 operator and the `!=` operator. As far as our subscription table's schema is concerned, we can pretend
 like the `>` operator does not exist. The same logic applies to "less than" constraints, allowing
-us to eliminate the `<`.
+us to eliminate the `<` operator.
 
 We can also express the "=" operation as a combination of `<=` and `>=`
 operators. That is `x = a` is equivalent to `x <= a AND x >=a`.
@@ -55,13 +54,13 @@ we can reasonably represent through a single schema.
 Unfortunately, there is not much we can do to reduce the set of `!=` operators. A user can
 specify as many `!=` constraints as they want and we can't consolidate them.
 
-Secondary Constraints
+## Secondary Constraints
 
 The secondary constraints are much easier to manage. For any secondary field in
 a field group, only constraints with the "=" operator are allowed, so this does
 not add much complexity.
 
-Subscription tables
+## Subscription tables
 
 With our reduced constraint set we can now make a pair of tables to describe all
 of the subscribed queries for our composite field group
@@ -95,6 +94,7 @@ field.
 
 We can then get all of the matching subscriptions with a query like
 
+`TODO: ADD QUERY CODE`
 ```
 select distinct subscription_id from {} where excluded_{} = $1
 ```
@@ -118,10 +118,11 @@ fn get_matching_composite_query_subscriptions(
 Amazing what you can do with three little dots right?
 
 If you really want to see sample code for that function, you can find it in the
-github project [link]. For now, we will just pretend like we implemented it, add
+[github project](https://github.com/pdiffley/diy-firestore) for this series. 
+For now, we will just pretend like we implemented it, add
 it to our create and delete functions, and call it a day.
 
-```rust
+```rust focus=20
 fn create_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -147,7 +148,7 @@ fn create_document(
 }
 ```
 
-```rust
+```rust focus=16
 pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -170,8 +171,9 @@ pub fn delete_document(
 }
 ```
 
-### Next up
+Similarly, I am going to leave out the code to create a new compound subscription, but it is visible in the github repo as well.
 
-We have now written the code we need to monitor updates to any subscriptions to
-our database, but we haven't writtent the code to subscribe to a query in the
-first place, or listen for updates from a client. We'll to that next.
+## Next up
+
+We have written the code we need to monitor updates to any subscriptions to
+our database. Next, we will go through how we can listen for updates from a client.

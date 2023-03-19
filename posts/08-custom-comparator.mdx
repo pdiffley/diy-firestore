@@ -1,10 +1,8 @@
 ---
-title: Building a Custom Comparator
+title: Building a Custom Operator Class
 index: 8
 ---
-# DIY Firestore
-
-## Create custom comparison operators
+# Building a Custom Operator Class
 
 In the previous section, we created a custom composite type `field_value`.
 
@@ -22,19 +20,19 @@ CREATE TYPE field_value AS (
 );
 ```
 
-Postgres's default comparison operators do not order our field_value type
+Postgres's default comparison operators fail to order our field_values
 correctly, so we need to create a set of custom comparison operators that
 Postgres can use to sort and build indexes for our values.
 
 Fortunately, Postgres has a built in way for us to implement custom comparison
 operators. Postgres also has some specific and fine grained language for how
 operators, their underlying functions, and indexes relate to each other and that
-terminology is not always intuitive. Let's go over that now so we are all on the
+terminology is not always intuitive. Let's go over that terminology now so we are all on the
 same page.
 
-### Terminology
+## Terminology
 
-**Operator**
+### Operator 
 
 An operator is the symbol representing some operation (eg. `>`, `<`, `=`). It is
 the symbol you put in a `WHERE` clause to limit the scope of a query.
@@ -44,7 +42,7 @@ that will be called when the operator is used. Operators can be overloaded for
 different types, so we can use standard operator symbols for our custom type. We
 can use the `<` symbol to perform a "less than" operation for example.
 
-**Strategies and support functions**
+### Strategies and support functions
 
 Because users can define their own operators, index methods (eg. btree, hashmap,
 gin) are not implemented using hardcoded operators. Instead an index method has
@@ -60,7 +58,7 @@ are used to implement those strategies is not hard coded.
 To tell the database what operators should be used to create an index for a
 particular type, we create an operator class.
 
-**Operator Class**
+### Operator Class
 
 An [operator class](https://www.postgresql.org/docs/14/sql-createopclass.html)
 is a collection of operators and functions that are mapped strategy numbers for
@@ -89,10 +87,10 @@ assigns the function `field_value_cmp` to the btree's corresponding support
 function number. Of course before we can make this operator class, we need to
 implement these operators and functions for our field_value type.
 
-Before we implement out operators, I'd like point out again that because of the
-way postgres maps operators to indexing `strategies`, we did not have to use the
+Before we implement our operators, I'd like point out again that because of the
+way postgres maps operators to indexing strategies, we did not have to use the
 operator symbols shown in the command above. Even though the strategy number
-**1** expects a `less than` operation we did not need to assign that strategy an
+1 expects a `less than` operation, we did not need to assign that strategy an
 operator with the `<` symbol. As long as the operator we assign the to strategy
 1 performs a `less than` comparison for two field values, the index is happy.
 
@@ -298,7 +296,6 @@ begin
   else
     return 8;
   end if;
-  return -1;
 end;
 $$language plpgsql;
 
@@ -466,7 +463,7 @@ CREATE OPERATOR != (
 );
 ```
 
-### The Operator Class
+### The operator class
 
 With all of our functions and operators defined, we can now run the command to
 define our operator class
@@ -557,7 +554,7 @@ This query results in the output
 
 We can see that all of our rows are sorted correctly!
 
-### A note on performance
+## A note on performance
 
 I am mostly ignoring performance issues in this series, but there is an issue
 with our operator class as written above that I think is significant enough to
@@ -575,15 +572,14 @@ we consider 1 and 1.0 to be equal), we cannot enable deduplication without
 losing information.
 
 It is possible to alter our comparison functions so that we can enable
-deduplication, but when then need to take that into account when writing the
+deduplication, but we then need to take that into account when writing the
 code to support queries. To avoid that complexity, I am just leaving
-deduplication off for now. I'll revisit this and go over the modifcations we
-would need to make to support deduplication later in [Bonus Features and Configurability](/posts/bonus-features-and-configurability). If you
-are interested in the detail of how Postgres handles deduplication,
-[the docs](https://www.postgresql.org/docs/current/btree-implementation.html#BTREE-DEDUPLICATION)
+deduplication off for now. If you
+are interested in learning more about how Postgres handles deduplication,
+[the Postgres docs](https://www.postgresql.org/docs/current/btree-implementation.html#BTREE-DEDUPLICATION)
 explain it quite well.
 
-### Next up
+## Next up
 
 We now have a fully functional field_value type that can hold any of our
 document data types, and we are ready to implement queries on our documents.

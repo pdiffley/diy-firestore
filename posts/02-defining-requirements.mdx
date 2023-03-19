@@ -18,7 +18,7 @@ which explain Firestore's features in more detail.
 
 ### Documents and Collections
 
-Our data model is going to be nearly identical to Firestore’s. We will be
+Our data model is going to be nearly identical to Firestore's. We will be
 storing **documents** of key-value pairs inside **collections**. Every
 document will have a string identifier, **document_id** and will be the child of a
 collection with its own string identifier, **collection_id**. Consider the
@@ -343,6 +343,9 @@ Firestore's client libraries play an important role in making the database useab
 manageing subscriptions and transactions for example. However, in this series, I will 
 only be demonstrating the server side code needed to support the database.
 
+We are also going to hopscotch right over security rules. For this series, we will assume 
+that any requests have already passed through an auth layer.
+
 ## Summary
 
 - Our database will store **documents** and in heirarchical **collections**.
@@ -370,5 +373,3 @@ only be demonstrating the server side code needed to support the database.
 
 Now that we know what we are building, we can put together the foundation of our
 database!
-
-​

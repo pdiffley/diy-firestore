@@ -1,14 +1,14 @@
 ---
-title: Composite Queries
+title: Compound Queries
 index: 11
 ---
-# Composite Queries
+# Compound Queries
 
 Unlike simple queries, we will not support any possible query out of the box. If
-we tried support all possible composite queries, we would quickly run into a
+we tried support all possible compound queries, we would quickly run into a
 problem with combinatorial explosion. Instead, we will require the combination
 of fields that will be queried over to be specified in advance, and only the
-first field, the **primary field**, can be queried with inequality operators (`<`,
+first field, the **primary field**, will allow inequality operators (`<`,
 `<=`, `>`, `>=`, `!=`). All other fields, the **secondary fields**, can only be filtered
 with the equality operator, `=`.
 
@@ -59,8 +59,8 @@ config file like so
 
 Since we have the field group specified in advance, we can make a lookup table
 specifically for it. We will assign the composite field group a unique id,
-"d8b8c614b73546daa1d85531dc412ef6", and create the lookup table
-composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6
+`"d8b8c614b73546daa1d85531dc412ef6"` and create the lookup table
+`composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6`.
 
 ```sql
 CREATE TABLE composite_lookup_table_d8b8c614b73546daa1d85531dc412ef6 (
@@ -105,11 +105,11 @@ and the tables affiliated with it.
 
 We can now make a function that will query a specific lookup table. I am making
 the assumption that we have already identified what field group the query
-belongs to. Our composite queries need to be generated dynamically so I have
+belongs to. Our compound queries need to be generated dynamically so I have
 started using a simple query builder to help with this.
 
 ```rust
-pub fn composite_query(transaction: &mut Transaction, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
+pub fn compound_query(transaction: &mut Transaction, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
@@ -243,7 +243,7 @@ We will then call those functions from our create and delete functions. We are
 going to lean a little further into the deus ex here and assume that we have
 already identified the set of composite groups affected by a write.
 
-```rust
+```rust focus=15
 fn create_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -268,7 +268,7 @@ fn create_document(
 }
 ```
 
-```rust
+```rust focus=11
 pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,

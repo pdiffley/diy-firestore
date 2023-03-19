@@ -2,7 +2,7 @@
 title: Simple Query Subscriptions
 index: 10
 ---
-## Query Subscriptions
+# Simple Query Subscriptions
 
 Now that we have added support for simple queries, we need to make sure that we
 can update any subscriptions to those queries. We will take the same approach
@@ -42,7 +42,8 @@ So we can query the subscription table efficiently, we will create the index
 
 ```sql
 CREATE INDEX simple_query_collection_subscription_idx ON
-simple_query_subscriptions(collection_id, field_name, field_operator, field_value, collection_parent_path);
+simple_query_subscriptions(collection_id, field_name, field_operator, 
+field_value, collection_parent_path);
 ```
 
 This index let's us efficiently query subscriptions for a particular field,
@@ -85,15 +86,30 @@ fn get_matching_simple_query_subscriptions(
 Then we'll add this check to our create and delete function with our other
 subscriptions
 
-```rust
-fn create_document(/* ... */) {
-//...
+```rust focus=17
+fn create_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+  update_id: &str,
+  document: &Document,
+) {
+  let mut encoded_document: Vec<u8> = vec![];
+  document.encode(&mut encoded_document).unwrap();
+
+  add_document_to_documents_table(transaction, collection_parent_path, collection_id, document_id, update_id, &encoded_document);
+  add_document_to_simple_query_table(transaction, collection_parent_path, collection_id, document_id, document);
+
+  let mut matching_subscriptions = vec![];
+  matching_subscriptions.extend(get_matching_basic_subscription_ids(transaction, collection_parent_path, collection_id, document_id).into_iter());
   matching_subscriptions.extend(get_matching_simple_query_subscriptions(transaction, collection_parent_path, collection_id, document).into_iter());
-//...
+
+  // Todo: send update to matching subscriptions
 }
 ```
 
-```rust
+```rust focus=13
 pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -119,12 +135,12 @@ we still have to do **a lot** of checks every time we write a document with even
 a moderate number of fields. Being able to make queries on any field, any time
 we want comes at a cost! While Firestore allows you to select fields to exclude
 from this indexing, there is a limit to how many fields you can exclude (and it
-is kind of a pain). Keep reading to the [customizations and improvements]
+is kind of a pain). Keep reading to the [Bonus Features and Configurability]()`TODO: Add LINK`
 section to see how we might improve on this.
 
-### Create a new subscription
+## Create a new subscription
 
-Like with our basic subscriptions, to create a new subscription, craete a new subscription id
+Like with our basic subscriptions, to create a new subscription, we create a new subscription id
 and insert a row for the query into `simple_query_subscriptions`.
 
 ```rust
@@ -152,11 +168,10 @@ pub fn subscribe_to_simple_query(
   transaction.execute("insert into simple_query_subscriptions values ($1, $2, $3, $4, $5, $6)",
                       &[&collection_parent_path_string, &collection_id, &field_name, &field_operator, &field_value, &subscription_id]).unwrap();
 
-  // Todo: trigger first subscription update?
+  // Todo: send client first batch of subscribed query data
   subscription_id
 }
 ```
-
 
 ### Next steps
 

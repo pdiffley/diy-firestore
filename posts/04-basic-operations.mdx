@@ -1,9 +1,9 @@
 ---
-title: Writes and Reads
+title: Basic Operations
 index: 4
 ---
 
-# Writes and Reads
+# Basic Operations
 Now that we have a table that we can store our documents in, we can create the functions
 to add documents to the database and read them back.
 
@@ -44,6 +44,17 @@ pub fn add_document_to_documents_table(
 ```
 
 ```rust
+fn delete_document(
+  transaction: &mut Transaction,
+  collection_parent_path: &str,
+  collection_id: &str,
+  document_id: &str,
+) {
+  if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
+    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
+  }
+}
+
 pub fn delete_document_from_documents_table(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -55,25 +66,16 @@ pub fn delete_document_from_documents_table(
     &[&collection_parent_path, &collection_id, &document_id])
     .unwrap();
 }
-
-fn delete_document(
-  transaction: &mut Transaction,
-  collection_parent_path: &str,
-  collection_id: &str,
-  document_id: &str,
-) {
-  if let Some(document) = get_document(transaction, collection_parent_path, collection_id, document_id) {
-    delete_document_from_documents_table(transaction, collection_parent_path, collection_id, document_id);
-  }
-}
 ```
 
-Right now these functions just take a document and insert or delete it from the documents table.
+Right now these functions just take a document and insert or delete it from the documents table, 
+but we will be expanding them over the course of this series so that
+they end up doing most of the databases' heavy lifting.
 
 We will also provide a generic write function that will either create a new
 document, or update an existing document depending on the state of the database.
 
-```rust
+```rust 
 fn write_document(
   transaction: &mut Transaction,
   mut document: Document,
@@ -88,15 +90,11 @@ fn write_document(
   delete_document(transaction, &collection_parent_path, &collection_id, &document_id);
   create_document(transaction, &collection_parent_path, &collection_id, &document_id, &update_id, &document);
 }
-
 ```
 The `delete_document` function is already a no-op if the specified document does not exist,
-so we don't need to perform that check in the `write_document` function. 
+so our `write_document` function can just delete the old document and create a new one.
 
-Our write functions are simple right now, but we will be expanding them over the course of this series so that
-they end up doing most of the heavy lifting for our databse.
-
-### Reading from the database
+## Reading from the database
 
 We will provide functions to read a single document, all the documents in a
 collection, and all the documents in a collection group
@@ -165,12 +163,14 @@ pub fn get_documents_from_collection_group(
   documents
 }
 ```
-Most of the work in these functions is done by the sql queries 
-which retrieve data from the documents table based on the specified identifiers.
+These functions just select documents from the documents table, filtering based on the 
+identifiers provided. To get a document, the full set of document identifiers are specified. 
+To get a collection, we filter on the collection_parent_path and collection_id. 
+To get a collection group, we only filter based on the collection_id.
 
 ### All together
 
 We now have a database with the feature set of a basic document store and the
 performance characteristics of SQL. Pretty cool right?
 
-Ok, maybe not so much. Let’s add the ability to subscribe to real time updates.
+Ok, maybe not so much. Let's add support for transactions.

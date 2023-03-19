@@ -2,21 +2,19 @@
 title: 'Simple Queries: A First Attempt'
 index: 7
 ---
-## Queries: first attempt
+# Simple Queries: A First Attempt
 
 Because we are storing our schema-less document data in a single binary column,
-we can’t directly query our document data. To get around this, we will create a
+we can't directly query our document data. To get around this, we will create a
 lookup table that we will use to query our documents.
 
-### Simple Queries
-
-First, let’s look at how we will support simple queries on a single field.
+First, let's look at how we will support simple queries on a single field.
 Firestore allows us to query documents in a collection based on a single field
 without specifying what fields we want to query in advance. Because we have no
-knowledge of what fields we will query in advance, we can’t structure the schema
+knowledge of what fields we will query in advance, we can't structure the schema
 of our lookup table around specific queries or documents. Instead, we need a
-generic was to query documents based on any field a user wants to search for at
-run time. To that end, we will create the lookup table `simple_query_lookup`
+generic way to query documents based on any field a user wants to search for at
+run time. To do this, we will create the lookup table `simple_query_lookup`
 
 ```sql
 CREATE TABLE simple_query_lookup (
@@ -31,23 +29,23 @@ CREATE TABLE simple_query_lookup (
 
 Each row in our table has a unique identifier for a document
 (collection_parent_path, collection_path, doc_id), the name of a field within
-that document and that field’s value. Now, when we write a document to the
+that document and that field's value. Now, when we write a document to the
 database, we will also add all of its fields to our lookup table.
 
 There is one odd thing about the schema of our table though. The field_value
 column has the type field_value. This is definitely not a native type supported
 by Postgres, so what is going on here?
 
-### Creating a custom type
+## Creating a custom type
 
 Any field in our document can have multiple data types which makes it difficult
-to store the field values in our table. Like with our protobuf, we need to
-create a type that can represent any of the subtypes that can be assigned to our
+to store the field values in our table. Like with our `Document` protobuf, we need to
+create a type that can represent any of the subtypes assigned to our
 field values. Conveniently, Postgres has a `CREATE TYPE` function that will let
 us do just that. There are
 [several options](https://www.postgresql.org/docs/current/sql-createtype.html)
-for creating a type. We will create a composite type with type field_value with
-the following command
+for creating a type. We will create a composite type, field_value, with
+the following commands
 
 ```sql
 CREATE TYPE "Unit" AS ENUM ('NotNull');
@@ -73,14 +71,16 @@ datatypes that will be held in our database. We do not have the convenient
 `oneof` feature that protobuf has, but for a given field, we will set the unused
 types to null. Note that if our value represents a timestamp, both the
 timestamp_nanos and timestamp_seconds field will have a value. We also created a
-`min` and `max` field so that internally, we can have a field value that is
-smaller or larger than any valid field input by the user.
+`min` and `max` field so that internally, we can have a field_value that is
+smaller or larger than any valid value input by the user.
 
 Composite types in Postgres behave similarly to rows in a table, and we can
 create an instance of our variable with similar syntax.
 
 ```sql
-CAST((,,5,,,,,,) as field_value)
+CAST(
+  (NULL, NULL , NULL, 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL) 
+  AS field_value)
 ```
 
 Here we create a row type holding the integer value 5, then cast it so postgres
@@ -93,15 +93,20 @@ field_value type. Consider the following example.
 
 ```sql
 SELECT * FROM ( VALUES
-	(CAST((NULL, NULL, NULL, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
-	(CAST((NULL, NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)),
-	(CAST((NULL, NULL, NULL, NULL, 1.0, NULL, NULL, NULL, NULL, NULL, NULL) AS field_value)))
+  (CAST(
+    (NULL, NULL, NULL, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL) 
+    AS field_value)),
+  (CAST(
+    (NULL, NULL, NULL, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL) 
+    AS field_value)),
+  (CAST(
+    (NULL, NULL, NULL, NULL, 1.0, NULL, NULL, NULL, NULL, NULL, NULL) 
+    AS field_value)))
   AS test_table(field_value)
 ORDER BY field_value ASC;
-
 ```
 
-Running this command which attempts to put two field values in ascending order
+Running this command which attempts to put three field values in ascending order
 results in the output
 
 ```
