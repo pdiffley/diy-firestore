@@ -85,6 +85,38 @@ retrieved by a client is out of date. The side affect of performing transactions
 this way is that our writes do not get sent to the database until after we have
 performed all of the reads in the transaction.
 
+### Pessimistic Transactions
+
+The transactions we implemented above are optimistic. When we attempt to perform the
+tranaction's writes, we check whether any of the previously read documents have changed
+and if any have, the transaction fails. We do not make any attempt to prevent the documents
+we are reading from being changed while the transaction is running. This works fine for 
+a lot of cases, but if you are editing documents that are likely to have a lot of write
+contention, this approach is ineffective, and you can end up in a situation where
+no writes are able to get through at all. Pessimistic transactions prevent this issue
+by locking the documents that used in a transaction and making other transactions that want
+to use those documents block until the locks are free.
+
+
+Solution: 
+first: could open long lived connection with a serverside transaction taking the reads and
+writes as they are made. -> poor performance due to many network calls in the transaction
+
+second: provide option to have functions that run on the database server and run the desired transactions
+
+
+If you have many clients trying to read and write to the same document in a transaction
+at the same time, all of the transactions will fail, then retry, then fail again and so on.
+One workaround for this problem is to use an exponential backoff, where after each failed
+attempt at running a transaction, a client will wait an exponentially increasing amount of 
+time before retrying. Exponentially increasing the retry delay helps spread out the requests 
+until they no longer conflict with each other. It also means you clients could end up waiting
+a long time for their transaction to go through, so this solution is less than ideal.
+
+Instead we would like our database to support locking pessimistic transactions. In this
+situation, the first transaction will acquire locks for the documents it is reading and writing, 
+then subsequent transactions will 
+
 ### Next up
 
 Now we are getting into the more distinguishing features of firestore. Next

@@ -333,9 +333,10 @@ document at least one transaction attempting to modify the document can
 complete, but all other transactions attempting to modify the document will have
 to retry and will ultimately fail if the 5 retry limit is reached. This is
 instead of queuing the contested transactions and completing them in the order
-they were made. When I have used Firestore's server side transactions in the
+they were made. Personally, when I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
-should behave, so I am going to put them in the`TODO: Insert LINK!` [bonus features section]();
+should behave. We will take a quick look at how we could support full sql-like 
+pessimistic transactions in our database
 
 ## Client Libraries
 
