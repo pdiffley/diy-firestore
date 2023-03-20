@@ -2,15 +2,15 @@
 title: Updating Clients
 index: 14
 ---
-### Delivering updates to clients
+# Deliver Updates to Clients
 
-By now we have done pretty much all of the heavy lifting to provide clients
+We have done pretty much all of the heavy lifting to provide clients with
 incrementally updating real time subscriptions to queries. We just need a way
 for our server to notify clients when they have updates to retrieve.
 
 Let's look at a system diagram for how we will do this:
 
-[system diagram]
+<Image src="/images/diy-firestore-system-design.svg" alt="drawing" height="600" width="600" />
 
 The system has 4 main pieces, the database server that we have spent most of
 this case study writing, a message queue (RabbitMQ is specified here, but SQS or
@@ -23,10 +23,10 @@ is written to the database that affects one of our clients subscriptions, the
 database server will send a message through RabbitMQ to the long polling server,
 which will notify the client of the update.
 
-I won't implement this entire server connection here, but we can take a look at
-the basic structure of this workflow.
+I won't implement this entire server connection here, but we can outline the code
+for this workflow.
 
-First lets look at our long polling endpoint
+First let's look at our long polling endpoint
 
 ```rust
 const LONG_POLL_TIME_SECONDS: u64 = 20;
@@ -61,10 +61,10 @@ This function first subscribes to RabbitMQ messages tagged for the client id,
 then checks if any updates have been pushed to its queue since it last checked
 in with the long polling server, and then waits. If there are existing updates
 for the client, or if there there is a message from RabbitMQ, the request is
-closed notifying the client that it needs to retrieve updates for its
+closed, notifying the client that it needs to retrieve updates for its
 subscriptions. If there are no updates in `LONG_POLL_TIME_SECONDS`, the request
 closes with a message that the client is up to date. At this point, the client
-would reopen the connection to listen for further updates.
+will re-open the connection to listen for further updates.
 
 If the client is notified that it has pending updates, it will request those
 updates from the database server
@@ -91,7 +91,7 @@ pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateV
 }
 ```
 
-The after receiving the updates, it will confirm that it received the updates,
+Then after receiving the updates, the client will confirm that it received the updates,
 so the database server can clear them from the update queue.
 
 ```rust
@@ -110,15 +110,15 @@ updates.
 And that's it! We have a system that can allow a client to subscribe to database
 queries and be notified of changes without data loss.
 
-### Why Long Polling?
+## Why Long Polling?
 
 There are a several options for how we could support sending messages from our
 server to our clients (eg. websockets, server sent events), so why are we using
 long polling?
 
 Long polling has quite a few benefits for our use case. The first is that unlike
-websockets and server sent events, any individual client's connection resets
-after the long poll window (set to 30 seconds above). This allows us to set up
+websockets and server sent events, any individual client's connection automatically resets
+after the long poll window (set to 20 seconds above). This allows us to set up
 mostly stateless servers that are trivial to horizontally scale and load
 balance. We can scale a set of distributed long polling servers up and down and
 not worry about interrupting client connections.
@@ -140,7 +140,7 @@ unbroken. However, because our client will be reconnecting to our long polling
 server every 30 seconds or so, a rare dropped message will only result in a short
 delay before the client identifies that it needs to request updates.
 
-Websockets are preferable to long polling in some cases. For example, if
+Websockets are preferable to long polling in some cases. If
 we required higher frequency message passing between our client and server
 (synchronizing state in a multiplayer game for example), websockets would likely
 a better choice. We don't need that rate of message passing though, so the drawbacks

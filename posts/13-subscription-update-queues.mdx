@@ -8,20 +8,19 @@ So far we have written code that identifies what subscriptions need to be
 updated when a write is made to the database, but we have not specified how we will
 actually send those updates.
 
-A naive implemenation, would just notify the client of a subscription that a
-subscription was updated, and have it re-query the data.
+A naive implemenation, would just notify a client when one 
+of it's subscriptions is updated, and have it re-query the data.
 
-That leads to some n^2 behavior though, rereading an entire collection everytime
+That leads to some n^2 behavior though, re-loading an entire query everytime
 a document is added, and also introduces the possibility that a
 message would be dropped resulting in a subscription being out of date until the
 next write that affected it comes through.
 
 When a write affects a subscription, we need a way to reliably send the subscriber
-only the changes that have been made without the risk of data being lost. We will create a
-queue (I use the term loosely) for every client. When a
-client's subscription is affected by a write, the update will be written to the queue.
-The client can then retrieve all of the changes for its subscriptions from the
-update queue.
+only the changes that have been made without the risk of data being lost. To do this, we will create a
+queue (I use the term loosely) in our postgres database that will hold all pending updates that need to be
+sent to a client. When a client's subscription is affected by a write, the update will be written to the queue.
+The client can then retrieve all of the changes for its subscriptions from the update queue.
 
 We will put all of our queues into a table, update queues.
 
@@ -62,12 +61,11 @@ pub fn write_change_to_update_queues(
 }
 ```
 
-For each subscription affected by the update, we delete any existing document 
-with the same id (an old update that has not been retrieved yet) from its 
-update queue if there is one, then insert the new document. Now we just
-pop this function into our create and delete functions
+For each subscription affected by the update, we check if there is an existing a pending
+update with the same id and if there is we delete it. We then insert the new document update into the queue.
+Now we just pop this function into our create and delete functions
 
-```rust
+```rust focus=22
 fn create_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -93,7 +91,7 @@ fn create_document(
 }
 ```
 
-```rust
+```rust focus=19
 	pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
@@ -128,5 +126,5 @@ removing items from the queue.
 
 We now have a table holding update queues for all of our subscriptions, but we
 still need to provide a way for the clients to reliably retrieve those updates.
-In the next section we will look at how we can reliably deliver these updates to
+In the next section, we will look at how we can reliably deliver these updates to
 the client.
