@@ -15,9 +15,10 @@ export default function Index({
     <main className={main}>
       <header className={header}>
         <h1>DIY Firestore</h1>
+
         <p className={blogSummary}>
           A series of blog posts about building a Firestore-like database from
-          scratch. How hard could it be?
+          scratch.
         </p>
         <p>by Phillip Diffley</p>
       </header>

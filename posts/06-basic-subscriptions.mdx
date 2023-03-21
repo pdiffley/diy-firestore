@@ -76,7 +76,8 @@ pub fn get_matching_basic_subscription_ids(
   let collection_subscriptions: Vec<String> = transaction.query(
     "SELECT subscription_id
     from basic_subscriptions
-    where collection_parent_path=$1 and collection_id=$2 and document_id IS NULL",
+    where collection_parent_path=$1 and collection_id=$2 and 
+    document_id IS NULL",
     &[&collection_parent_path, &collection_id],
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();
@@ -84,7 +85,8 @@ pub fn get_matching_basic_subscription_ids(
   let collection_group_subscriptions: Vec<String> = transaction.query(
     "SELECT subscription_id
     from basic_subscriptions
-    where collection_parent_path IS NULL and collection_id=$1 and document_id IS NULL",
+    where collection_parent_path IS NULL and collection_id=$1 and 
+    document_id IS NULL",
     &[&collection_id],
   ).unwrap().iter()
     .map(|x| x.get(0)).collect();

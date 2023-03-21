@@ -1,8 +1,8 @@
 ---
-title: Updating Clients
+title: Update Delivery
 index: 14
 ---
-# Deliver Updates to Clients
+# Update Delivery
 
 We have done pretty much all of the heavy lifting to provide clients with
 incrementally updating real time subscriptions to queries. We just need a way
@@ -46,7 +46,9 @@ pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
   // Todo: close request with message that client is up to date
 }
 
-pub fn client_is_out_of_date(sql_client: &mut Client, user_client_id: &str) -> bool {
+pub fn client_is_out_of_date(
+  sql_client: &mut Client, 
+  user_client_id: &str) -> bool {
   return sql_client.query(
     "SELECT 1 FROM client_subscriptions C JOIN update_queues U
      ON C.subscription_id = U.subscription_id
@@ -70,9 +72,12 @@ If the client is notified that it has pending updates, it will request those
 updates from the database server
 
 ```rust
-pub fn get_updates(sql_client: &mut Client, user_client_id: &str) -> Vec<UpdateValue> {
+pub fn get_updates(
+  sql_client: &mut Client, 
+  user_client_id: &str) -> Vec<UpdateValue> {
   sql_client.query(
-    "SELECT subscription_id, collection_parent_path, collection_id, document_id, document_data, update_id
+    "SELECT subscription_id, collection_parent_path, collection_id, 
+            document_id, document_data, update_id
      FROM client_subscriptions C JOIN update_queues U
      ON C.subscription_id = U.subscription_id
      WHERE C.client_id = $1
@@ -95,10 +100,15 @@ Then after receiving the updates, the client will confirm that it received the u
 so the database server can clear them from the update queue.
 
 ```rust
-pub fn confirm_updates(sql_client: &mut Client, user_client_id: &str, update_ids: &[String]) {
+pub fn confirm_updates(
+  sql_client: &mut Client, 
+  user_client_id: &str, 
+  update_ids: &[String]) 
+{
   sql_client.execute(
     "delete FROM update_queues U USING client_subscriptions C
-     where U.subscription_id = C.subscription_id and C.client_id = $1 and U.update_id IN $2",
+     where U.subscription_id = C.subscription_id and C.client_id = $1 and 
+     U.update_id IN $2",
     &[&user_client_id, &update_ids]).unwrap();
 }
 ```

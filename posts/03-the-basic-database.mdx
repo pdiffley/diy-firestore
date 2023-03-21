@@ -1,8 +1,8 @@
 ---
-title: The Basic Database
+title: The Database
 index: 3
 ---
-# First step: The database
+# The Database
 
 Before we implement the more complex features of our database we need to set up
 an underlying datastore. We are going to put all of our data into a SQL
@@ -44,7 +44,7 @@ CREATE INDEX collection_id_collection_parent_path_idx
 ON documents(collection_id, collection_parent_path, document_id, update_id);
 ```
 
-## Binary Document Representation
+## Binary document representation
 
 To store our documents in the document_data column, we need a way to get a
 binary representation of our document. Protobuf provides a convenient way to do
@@ -139,7 +139,7 @@ either. To query a JSONB column efficiently, you need to create an index
 specifying which JSON fields you want to query in advance. We need to support
 queries on any field in any document at any time, so that won't work for us.
 
-## Next Up
+## Next up
 
 Now that we know how we are storing our data, we will create functions to write
 and read documents.

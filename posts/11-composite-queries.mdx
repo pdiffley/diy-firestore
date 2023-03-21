@@ -109,25 +109,31 @@ belongs to. Our compound queries need to be generated dynamically so I have
 started using a simple query builder to help with this.
 
 ```rust
-pub fn compound_query(transaction: &mut Transaction, parameters: &[QueryParameter], composite_group: &CompositeFieldGroup) -> Vec<Document> {
+pub fn compound_query(
+  transaction: &mut Transaction, 
+  parameters: &[QueryParameter], 
+  composite_group: &CompositeFieldGroup) -> Vec<Document> {
   let query_string = {
     let mut query = sql_query_builder::Select::new()
       .select("collection_parent_path, collection_id, document_id")
       .from(&composite_group.lookup_table_name());
     for (i, parameter) in parameters.iter().enumerate() {
-      let constraint = format!("{} {} ${}", parameter.field_name, parameter.operator, i + 1);
+      let constraint = format!("{} {} ${}", parameter.field_name, 
+        parameter.operator, i + 1);
       query = query.where_clause(&constraint);
     }
     query.as_string()
   };
 
-  let args: Vec<_> = parameters.iter().map(|p| &p.parameter as &(dyn ToSql + Sync)).collect();
+  let args: Vec<_> = parameters.iter()
+    .map(|p| &p.parameter as &(dyn ToSql + Sync)).collect();
 
   let documents: Vec<Document> = transaction.query(&query_string, &args[..])
     .unwrap()
     .into_iter()
     .map(|row| get_document(transaction, row.get("collection_parent_path"),
-                            row.get("collection_id"), row.get("document_id")).unwrap())
+                            row.get("collection_id"), row.get("document_id"))
+                            .unwrap())
     .collect();
   documents
 }
@@ -162,7 +168,8 @@ pub fn add_document_to_composite_query_tables(
 )
 {
   for composite_field_group in composite_groups {
-    add_document_to_composite_query_table(transaction, collection_parent_path, collection_id, document_id, document, composite_field_group);
+    add_document_to_composite_query_table(transaction, collection_parent_path, 
+      collection_id, document_id, document, composite_field_group);
   }
 }
 
@@ -174,9 +181,11 @@ fn add_document_to_composite_query_table(
   document: &Document,
   composite_field_group: &CompositeFieldGroup,
 ) {
-  let (primary_value, secondary_values) = get_field_group_values(document, composite_field_group);
+  let (primary_value, secondary_values) = 
+    get_field_group_values(document, composite_field_group);
 
-  let table_name = format!("\"{}\"", composite_field_group.lookup_table_name());
+  let table_name = format!("\"{}\"", 
+    composite_field_group.lookup_table_name());
   let query_string = {
     let mut query = sql_query_builder::Insert::new()
       .insert_into(&table_name)
@@ -188,7 +197,8 @@ fn add_document_to_composite_query_table(
     query.as_string()
   };
 
-  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&collection_parent_path, &collection_id, &document_id, &primary_value];
+  let mut args: Vec<&(dyn ToSql + Sync)> = vec![&collection_parent_path, 
+    &collection_id, &document_id, &primary_value];
   args.extend(secondary_values.iter().map(|x| x as &(dyn ToSql + Sync)));
 
   transaction.execute(&query_string, &args).unwrap();
@@ -198,7 +208,8 @@ fn get_field_group_values(
   document: &Document,
   composite_field_group: &CompositeFieldGroup,
 ) -> (field_value, Vec<field_value>) {
-  let primary_value = field_value_proto_to_sql(document.fields.get(&composite_field_group.primary_field_name).unwrap());
+  let primary_value = field_value_proto_to_sql(
+    document.fields.get(&composite_field_group.primary_field_name).unwrap());
   let mut secondary_values = vec![];
   for field_name in &composite_field_group.sorted_secondary_field_names {
     if let Some(value) = document.fields.get(field_name) {
@@ -221,7 +232,8 @@ pub fn delete_document_from_composite_query_tables(
 )
 {
   for composite_field_group in composite_groups {
-    delete_document_from_composite_query_table(transaction, collection_parent_path, collection_id, document_id, composite_field_group)
+    delete_document_from_composite_query_table(transaction, 
+      collection_parent_path, collection_id, document_id, composite_field_group)
   }
 }
 
@@ -233,9 +245,12 @@ fn delete_document_from_composite_query_table(
   composite_field_group: &CompositeFieldGroup,
 ) {
   let query_string: String =
-    format!("delete from \"{}\" where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
+    format!(
+      "delete from \"{}\" 
+      where collection_parent_path=$1 and collection_id=$2 and document_id=$3",
             composite_field_group.lookup_table_name());
-  transaction.execute(&query_string, &[&collection_parent_path, &collection_id, &document_id]).unwrap();
+  transaction.execute(&query_string, &[&collection_parent_path, &collection_id, 
+    &document_id]).unwrap();
 }
 ```
 
