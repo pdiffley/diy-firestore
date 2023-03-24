@@ -45,38 +45,29 @@ do.
 
 ### You need more configurability
 
-Firestore is a generic product. It has to meet the needs of a wide range of
-clients, and it does not provide many options for configuration. Features that
-make it quick and easy to get up and running with Firestore can become a
-liability when you are scaling and have much higher database traffic. You might
-want to continue using a data management system like Firestore but need to tweak
-parameters of the system to make it more performant and scalable for your use
-case.
+Firestore is a generic product and does not provide many options for configuration. 
 
-Cloud Firestore is designed to get you up and running quickly. You don't need to
-worry about deploying your database or allocating resources for it. You just
-make a project and then pay per read and write. This cost model is convenient
-for getting a project started quickly, but it limits that amount of
+All database resources are managed for you and you pay per read and write. Only paying for your individual 
+reads and writes is convenient when you are starting a project, but it limits the amount of
 configurability you can have. A cost model where you pay for the underlying 
-infrastructure supporting your database rather than paying per read and write
-opens up a lot of opens for configurability.
+infrastructure supporting your database rather than paying per read and write removes these limitations.
+
+At the end of this series, I will show some examples
+of how we could customize our database to suit our needs in a way that Firestore might not.
 
 ### You're cloud costs are too high
 
 Firestore is designed to be highly scalable and have a low barrier to entry, but
 it is also quite expensive. This likely doesn't matter when you are just
 starting a company and want to get up and running quickly, but as your traffic 
-grows, Firestore's high price per read and write could become a problem. Over the
-course of this series, we will see how Firestore's default features incur a lot
-of overhead whether you are using them or not. Firestore let's you turn some of
+grows, Firestore's high price per read and write could become a problem. 
+
+Over the course of this series, we will see how Firestore's default features incur a lot
+of overhead whether you are using them or not. Firestore lets you turn some of
 these features off, but many of them are on no matter what. Running a customized
 version of Firestore would give you the transparency needed to understand what
 operations are expensive and allow you to turn off expensive features that you
 don't need. 
-
-At the end of this series, I will show some examples
-of how we could customize our database to suit our needs in a way that Firestore
-might not.
 
 ## #Goals
 
@@ -90,11 +81,13 @@ solution. Instead, I want to convey how we could overcome the key technical
 hurdles that get in the way of making a database like Firestore, and to that
 end, will opt for clarity over performance. Likewise, code samples I include
 will be correct, but won't be production ready. I will assume that all inputs
-and validated and well formatted and the general approach to error handling 
-will be to panic.
+are validated and well formatted and the general approach to error handling 
+will be to throw a runtime error. Let chaos reign! 
 
 I also want to note in advance that I do not have any inside knowledge of how
 Firestore is implemented. This series is just me taking a stab at how I would
 build a similar product.
 
-With that out of the way, let's dive right in! ... to defining our requirements
+## Next up
+
+With all that out of the way, let's define the scope of what we will be covering in this series.

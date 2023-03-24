@@ -53,10 +53,10 @@
   border-radius: 0.25rem;
 }
 
-.article :global(img) {
+/* .article :global(img) {
   display: block;
   margin: 2rem auto;
-}
+} */
 
 .footer {
   margin: 2rem 0 6rem;

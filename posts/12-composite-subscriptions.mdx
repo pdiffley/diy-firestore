@@ -19,15 +19,15 @@ to reduce this complexity significantly.
 
 To show how we will do this, let's imagine putting our field_values on a number line (of sorts)
 
-<Image src="/images/number-line.svg" alt="drawing" height="100" width="600" />
+<Image src="/images/number-line.svg" alt="number line with a min and max field value" height="100" width="600" />
 
 All the way to the left we have our designated minimum value, and all the way to
 the right, we have the maximum value.
 
 Now let's imagine that we place two greater than constraints on the field_value in
-our query. `x > a` and `x > b` where `a < b`
+our query. `x > A` and `x > B` where `A < B`
 
-<Image src="/images/number-line-inequality.svg" alt="drawing" height="100" width="600" />
+<Image src="/images/number-line-inequality.svg" alt="number line with field value A to the left of field value B" height="100" width="600" />
 
 It's immediately apparent that we have some redundancy here. Regardless of how
 many "greater than" constraints we put on our field value, only the one with the
@@ -37,14 +37,14 @@ operators as well.
 
 We still have two types of greater than operator though, "greater than" and "greater than
 or equal to". Notice that the greater than operation can also be expressed as a
-combination of the `>=` operation and a `!=` operation. That is, `x > a` is equivalent to `x >= a AND x != a`. So anytime we receive a
+combination of the `>=` operation and a `!=` operation. That is, `x > A` is equivalent to `x >= A AND x != A`. So anytime we receive a
 query with a `>` operator we can convert is to be written in terms of the `>=`
 operator and the `!=` operator. As far as our subscription table's schema is concerned, we can pretend
 like the `>` operator does not exist. The same logic applies to "less than" constraints, allowing
 us to eliminate the `<` operator.
 
 We can also express the "=" operation as a combination of `<=` and `>=`
-operators. That is `x = a` is equivalent to `x <= a AND x >=a`.
+operators. That is `x = A` is equivalent to `x <= A AND x >= A`.
 
 All of this together means that we can take any set of constraints on our
 primary field and reduce those constraints to a single `<=` condition, a single
