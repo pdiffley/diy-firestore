@@ -10,7 +10,7 @@ for our server to notify clients when they have updates to retrieve.
 
 Let's look at a system diagram for how we will do this:
 
-<Image src="/images/diy-firestore-system-design.svg" alt="system diagram with boxes for clients, database server, RabbitMQ, and long poll server" height="600" width="600" />
+<Image src="/diy-firestore/images/diy-firestore-system-design.svg" alt="system diagram with boxes for clients, database server, RabbitMQ, and long poll server" height="600" width="600" />
 
 The system has 4 main pieces, the database server that we have spent most of
 this case study writing, a message queue (RabbitMQ is specified here, but SQS or

@@ -19,7 +19,7 @@ to reduce this complexity significantly.
 
 To show how we will do this, let's imagine putting our field_values on a number line (of sorts)
 
-<Image src="/images/number-line.svg" alt="number line with a min and max field value" height="100" width="600" />
+<Image src="/diy-firestore/images/number-line.svg" alt="number line with a min and max field value" height="100" width="600" />
 
 All the way to the left we have our designated minimum value, and all the way to
 the right, we have the maximum value.
@@ -27,7 +27,7 @@ the right, we have the maximum value.
 Now let's imagine that we place two greater than constraints on the field_value in
 our query. `x > A` and `x > B` where `A < B`
 
-<Image src="/images/number-line-inequality.svg" alt="number line with field value A to the left of field value B" height="100" width="600" />
+<Image src="/diy-firestore/images/number-line-inequality.svg" alt="number line with field value A to the left of field value B" height="100" width="600" />
 
 It's immediately apparent that we have some redundancy here. Regardless of how
 many "greater than" constraints we put on our field value, only the one with the
