@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "next-remote-watch posts",
-    "build": "next build && next export -o docs && touch docs/.nojekyll",
+    "build": "next build && next export -o docs",
     "check:format": "prettier --check .",
     "check:lint": "eslint --cache .",
     "check:types": "tsc --noEmit",
