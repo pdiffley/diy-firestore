@@ -8,21 +8,12 @@ import { MDXRemote } from "next-mdx-remote";
 import { remarkCodeHike } from "@code-hike/mdx";
 import { CH } from "@code-hike/mdx/components";
 import theme from "shiki/themes/dracula-soft.json";
-import * as matter from "gray-matter";
+import matter from "gray-matter";
 
-import {
-  content,
-  homeLink,
-  nav,
-  article,
-  footer,
-} from "../../styles/post.module.css";
+import { Post } from "../../model/Post";
+import styles from "../../styles/post.module.css";
 
-type Post = {
-  index: number;
-  title: string;
-  slug: string;
-};
+const { content, homeLink, nav, article, footer } = styles;
 
 type Props = {
   source: Awaited<ReturnType<typeof serialize>>;
@@ -31,7 +22,12 @@ type Props = {
   nextPost: Post;
 };
 
-export default function Post({ source, title, previousPost, nextPost }: Props) {
+export default function PostPage({
+  source,
+  title,
+  previousPost,
+  nextPost,
+}: Props) {
   return (
     <>
       <Head>
@@ -93,7 +89,7 @@ export async function getStaticProps({ params }) {
       encoding: "utf8",
     });
     return {
-      ...matter(contents).data,
+      ...(matter(contents).data as Post),
       slug: x.slice(3, x.length - 4),
     };
   });

@@ -3,9 +3,10 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "next-remote-watch posts",
-    "build": "next build && next export",
+    "build": "next build && next export -o docs",
     "check:format": "prettier --check .",
     "check:lint": "eslint --cache .",
+    "check:types": "tsc --noEmit",
     "check": "concurrently -P 'npm:check:* {@}' --",
     "fix:format": "prettier --write .",
     "fix:lint": "eslint --cache --fix .",

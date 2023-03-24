@@ -10,6 +10,7 @@ scratch.md
 !.yarn/versions
 
 .next
-out
 
 .eslintcache
+
+tsconfig.tsbuildinfo

@@ -1,16 +1,16 @@
 import fs from "fs";
 import path from "path";
-import * as matter from "gray-matter";
+import matter from "gray-matter";
 import Link from "next/link";
 
 import "@code-hike/mdx/dist/index.css";
-import { main, blogSummary, header, nav } from "../styles/index.module.css";
 
-export default function Index({
-  postsData,
-}: {
-  postsData: Array<{ title: string; slug: string; subtitle: string }>;
-}) {
+import { Post } from "../model/Post";
+import styles from "../styles/index.module.css";
+
+const { main, blogSummary, header } = styles;
+
+export default function Index({ postsData }: { postsData: Array<Post> }) {
   return (
     <main className={main}>
       <header className={header}>
@@ -22,7 +22,7 @@ export default function Index({
         </p>
         <p>by Phillip Diffley</p>
       </header>
-      <nav className={nav}>
+      <nav>
         {postsData.map(({ title, slug, subtitle }) => (
           <div key={slug}>
             <h2>
@@ -44,7 +44,7 @@ export async function getStaticProps() {
         encoding: "utf8",
       });
       return {
-        ...matter(contents).data,
+        ...(matter(contents).data as Post),
         slug: x.slice(3, x.length - 4),
       };
     })
