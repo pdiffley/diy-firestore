@@ -113,10 +113,10 @@ Documents and collections are uniquely identified in the database by the path
 from their root collection. This includes all parent collections and document
 ids.
 
-For example, the full unique identifier for the `messages` collection in `roomA` is
+For example, the full unique identifier for the `messages` collection in `roomA` is  
 `"/rooms/roomA/messages"`
 
-and the full unique identifier for `message1` in `roomA` is
+and the full unique identifier for `message1` in `roomA` is  
 `"/rooms/roomA/messages/message1"`
 
 We will break these unique identifiers into three components. The first two,
@@ -124,7 +124,7 @@ We will break these unique identifiers into three components. The first two,
 **collection_parent_path** and encompasses everything in a documents unique
 path prior to it's collection. For example, the collection_parent_path for the
 messages collection above is `"/rooms/roomA"`. The collection_parent_path for top
-level collections (eg. rooms) is just an empty string.
+level collections (eg. `rooms`) is just an empty string.
 
 In general the unique identifier for any collection takes the form
 
@@ -270,7 +270,7 @@ out of scope for this series.
 ## Subscriptions
 
 One of the key features of Firestore is that our client side applications can
-subscribe to changes in collections and queries and be notified with updates are
+subscribe to changes in collections and queries and be notified when updates are
 made in real time. We could create the subscription below to print messages sent
 from Alex to roomA.
 
@@ -340,7 +340,7 @@ should behave. We are going to leave pessimistic transactions out of this series
 ## Client Libraries
 
 Firestore's client libraries play an important role in making the database useable,
-manageing subscriptions and transactions for example. However, in this series, I will 
+managing subscriptions and transactions for example. However, in this series, I will 
 only be demonstrating the server side code needed to support the database.
 
 We are also going to hopscotch right over security rules. For this series, we will assume 
