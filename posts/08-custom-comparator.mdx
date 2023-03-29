@@ -94,10 +94,8 @@ operator symbols shown in the command above. Even though the strategy number
 operator with the `<` symbol. As long as the operator we assign the to strategy
 1 performs a `less than` comparison for two field values, the index is happy.
 
-So if you were feeling particularly excited one day and wanted to pass that
-enthusiam along to your database, you could assign the "equal" strategy the
-operator `=D`. Fun right? Who ever said database engineers don't know how to
-have a good time? Please don't do this.
+Postgres does [limit the symbols](https://www.postgresql.org/docs/current/sql-syntax-lexical.html) 
+that you can use for an operator, so you can't create an operator like `=D`. This is probably for the best.
 
 ## Building our operator class
 
