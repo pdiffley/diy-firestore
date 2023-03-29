@@ -28,7 +28,7 @@ fn create_document(
   collection_id, document_id, update_id, &encoded_document);
 }
 
-pub fn add_document_to_documents_table(
+fn add_document_to_documents_table(
   transaction: &mut Transaction,
   collection_parent_path: &str,
   collection_id: &str,
@@ -45,7 +45,7 @@ pub fn add_document_to_documents_table(
 ```
 
 ```rust
-fn delete_document(
+pub fn delete_document(
   transaction: &mut Transaction,
   collection_parent_path: &str,
   collection_id: &str,
@@ -59,7 +59,7 @@ fn delete_document(
   }
 }
 
-pub fn delete_document_from_documents_table(
+fn delete_document_from_documents_table(
   transaction: &mut Transaction,
   collection_parent_path: &str,
   collection_id: &str,
@@ -74,15 +74,15 @@ pub fn delete_document_from_documents_table(
 }
 ```
 
-Right now these functions just take a document and insert or delete it from the documents table, 
-but we will be expanding them over the course of this series so that
+Right now these functions just take a document and insert it to or delete it from the documents table, 
+but we will be expanding these functions over the course of this series so that
 they end up doing most of the databases' heavy lifting.
 
 We will also provide a generic write function that will either create a new
-document, or update an existing document depending on the state of the database.
+document or update an existing document depending on the state of the database.
 
 ```rust 
-fn write_document(
+pub fn write_document(
   transaction: &mut Transaction,
   mut document: Document,
 )
@@ -98,7 +98,9 @@ fn write_document(
 }
 ```
 The `delete_document` function is already a no-op if the specified document does not exist,
-so our `write_document` function can just delete the old document and create a new one.
+so our `write_document` function can just delete the old document and create a new one. Users will
+only write new documents using the `write_document` function. The `create_document` function is only
+used internally.
 
 ## Reading from the database
 
@@ -176,7 +178,7 @@ identifiers provided. To get a document, the full set of document identifiers ar
 To get a collection, we filter on the collection_parent_path and collection_id. 
 To get a collection group, we only filter based on the collection_id.
 
-### All together
+## All together
 
 We now have a database with the feature set of a basic document store and the
 performance characteristics of SQL. Pretty cool right?

@@ -16,9 +16,7 @@ the broad feature set we need to support.
 The first thing we will do is create a table to hold our our schemaless
 documents,
 
-<CH.Code>
-
-```sql 5
+```sql
 CREATE TABLE documents (
   collection_parent_path      TEXT,
   collection_id               TEXT,
@@ -29,15 +27,13 @@ CREATE TABLE documents (
 );
 ```
 
-</CH.Code>
-
 Each row in the `documents` table holds the unique identifiers for a document,
 `collection_parent_path`, `collection_id`, and `document_id`, as well as a blob
-holding the document data itself. We also included a column `update_id` which
-we'll make use of later.
+holding the document data itself. We also included a column `update_id` which we will
+change to a new unique value anytime a document is updated. We will make use of this later.
 
 So that we can retrieve documents from the table based on their identifiers, we
-will create the index
+will create an index
 
 ```sql
 CREATE INDEX collection_id_collection_parent_path_idx
@@ -67,8 +63,8 @@ message Document {
 }
 ```
 
-Protobuf messages have a schema though. To allow for multiple datatypes to be
-stored in our document, we will define a type `FieldValue` that can hold all of
+Protobuf messages have a schema though. To allow for multiple data types to be
+stored in our document, we define a type `FieldValue` that can hold all of
 the possible values our documents support. Protobuf's `oneof` feature
 conveniently allows us to indicate that any given FieldValue will only contain
 one of these types.
@@ -112,7 +108,7 @@ using a SQL database places some limits on scalability, one of
 Firestore's selling points. Using a traditional SQL database, we are limited to
 vertically scaling our write capacity. Vertical scaling is acceptable for most use
 cases, but the idea that you might have to fully rearchitect your system at a
-future date because your database can't scale to your needs can feel troubling
+future date because your database can't scale to your needs can be troubling
 when you are starting a project (even if you know you are optimizing
 prematurely). That said, if we needed horizontal scalability, we could upgrade to a
 horizontally scaleable SQL database like Spanner.
@@ -122,14 +118,14 @@ Protobuf is a widely used standard with cross language support and good
 performance, so it is convenient for our use case, but there are other options
 we could have chosen.
 
-One notable alternative, would have been to use JSON. This is particularly
+One notable alternative would have been to use JSON. This is particularly
 tempting as Postgres allows you to store JSON documents in a binary JSONB column
 and perform queries over the fields in those JSON documents. JSON falls short
 for us in a couple ways though. The biggest issue is that JSON does not
 distinguish between integer and floating point numeric types (`1` and `1.0` are
 identical in JSON). We need our documents to distinguish between 64 bit numbers
-of both integer and floating point types. If we naively used JSON to hold our
-numeric types, we would lose the type information needed to translate the JSON
+of both integer and floating point types. If we used JSON to hold our
+numeric types in a naive manner, we would lose the type information needed to translate the JSON
 numbers back to the appropriate type in our client applications. Keeping track
 of the type information manually would be a pain and is just not worth the
 effort.

@@ -26,7 +26,7 @@ Postgres can use to sort and build indexes for our values.
 
 Fortunately, Postgres has a built in way for us to implement custom comparison
 operators. Postgres also has some specific and fine grained language for how
-operators, their underlying functions, and indexes relate to each other and that
+operators and their underlying functions relate to each other and that
 terminology is not always intuitive. Let's go over that terminology now so we are all on the
 same page.
 
@@ -88,7 +88,7 @@ function number. Of course before we can make this operator class, we need to
 implement these operators and functions for our field_value type.
 
 Before we implement our operators, I'd like point out again that because of the
-way postgres maps operators to indexing strategies, we did not have to use the
+way Postgres maps operators to indexing strategies, we did not have to use the
 operator symbols shown in the command above. Even though the strategy number
 1 expects a `less than` operation, we did not need to assign that strategy an
 operator with the `<` symbol. As long as the operator we assign the to strategy
@@ -374,8 +374,8 @@ $$language plpgsql;
 
 ### Operators
 
-Now that we have a dedicated comparison functions, we can implement operators
-for field_value. Lets look at the "less than" operator first.
+Now that we have dedicated comparison functions, we can implement operators
+for field_value. Let's look at the "less than" operator first.
 
 ```sql
 CREATE OPERATOR < (
@@ -398,10 +398,10 @@ arguments of the operator will be of type field_value. The left and right
 arguments of the `<` operator will be passed to the `a` and `b` arguments of
 `field_value_lt`.
 
-The parameters `commutator`, `negator`, `restrict`, and `join` tell postgres how
+The parameters `commutator`, `negator`, `restrict`, and `join` tell Postgres how
 our new operator relates to other operators (which we will define shortly) and
 helps it optimize the use of our operators internally. The
-[postgres docs](https://www.postgresql.org/docs/current/xoper-optimization.html)
+[Postgres docs](https://www.postgresql.org/docs/current/xoper-optimization.html)
 provide an execellent explanation of what these parameters do, so I will not
 repeat that explanation here. In case you don't want to read that doc page
 though, I will just note that `scalarltsel` and `scalarltjoinsel` are built in

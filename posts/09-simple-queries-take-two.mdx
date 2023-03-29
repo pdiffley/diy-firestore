@@ -161,12 +161,12 @@ pub fn delete_document(
 }
 ```
 
-Now whenever we modify the documents in our database the lookup table will be
+Now whenever we modify the documents in our database, the lookup table will be
 updated too. Because we are doing all these modifications in a single
 transaction, we don't have to worry about the tables being temporarily out of
 sync.
 
-### Next Up
+## Next Up
 
 Now that we can support simple queries over our collections, we will add support
 for subscriptions to those queries.

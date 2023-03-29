@@ -4,11 +4,11 @@ index: 11
 ---
 # Compound Queries
 
-Unlike simple queries, we will not support any possible query out of the box. If
+Unlike simple queries, we will not support any possible compound query out of the box. If
 we tried support all possible compound queries, we would quickly run into a
-problem with combinatorial explosion. Instead, we will require the combination
-of fields that will be queried over to be specified in advance, and only the
-first field, the **primary field**, will allow inequality operators (`<`,
+problem with combinatorial explosion. Instead, we will require the user to specify the combination
+of fields that will be queried over in advance, and only the
+first field, the **primary field**, can be filtered with inequality operators (`<`,
 `<=`, `>`, `>=`, `!=`). All other fields, the **secondary fields**, can only be filtered
 with the equality operator, `=`.
 
@@ -16,7 +16,7 @@ Because we know the combinations of fields that need to be queried in advance,
 we can create tables and indexes built to support those queries specifically.
 
 
-Let's look an example collection of user data `users`
+Let's look at an example collection of user data `users`
 
 <div className="collection">
   <div className="document-title"> <Image src="/diy-firestore/images/collection-dark.png" alt="drawing" height="30" width="30" /> <div className="document-name"> users </div> </div>

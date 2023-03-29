@@ -10,28 +10,28 @@ of fields we would perform a query over. To support subscriptions however, we ne
 that supports looking up any type of query we might make on those fields. 
 
 ## Primary Constraints
-To make the range of queries we have to support more manageable, we only allow inequality 
-constraints on the primary field. That said we still have to support any combination of 6 
+In the last section, we made the range of queries we have to support more manageable by only allowing inequality 
+constraints on the primary field. That said, we still have to support any combination of 6 
 operators (`<`, `<=`,` >`, `>=`, `=`, and `!=`) on that field, which makes it difficult to
 define a concise schema that can describe all of the queries users are subscribed to. Fortunately,
-our inequality operators have redudancies and we can consolidate a queries constraints 
+our inequality operators have redudancies, and we can consolidate a query's constraints 
 to reduce this complexity significantly.
 
-To show how we will do this, let's imagine putting our field_values on a number line (of sorts)
+To show how we will do this, let's imagine putting our field_values on a number line.
 
 <Image src="/diy-firestore/images/number-line.svg" alt="number line with a min and max field value" height="100" width="600" />
 
 All the way to the left we have our designated minimum value, and all the way to
 the right, we have the maximum value.
 
-Now let's imagine that we place two greater than constraints on the field_value in
+Now let's imagine that we place two "greater than" constraints on the field_value in
 our query. `x > A` and `x > B` where `A < B`
 
 <Image src="/diy-firestore/images/number-line-inequality.svg" alt="number line with field value A to the left of field value B" height="100" width="600" />
 
 It's immediately apparent that we have some redundancy here. Regardless of how
 many "greater than" constraints we put on our field value, only the one with the
-lowest parameter value is going to matter, so we know that our queries only need
+lowest parameter value is going to matter. Based on that we know that our queries only need
 to support one constraint of a "greater than" variety. This applies the the "less than" type
 operators as well.
 
@@ -62,7 +62,7 @@ not add much complexity.
 
 ## Subscription tables
 
-With our reduced constraint set we can now make a pair of tables to describe all
+With our reduced constraint set, we can now make a pair of tables to describe all
 of the subscribed queries for our composite field group
 
 ```sql
@@ -87,9 +87,7 @@ CREATE TABLE composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6 (
 
 The first "included" table has one row for every subscription that specifies the
 `<=` and `>=` constraint on the primary field and the "=" constraints on the
-secondary fields.
-
-The second "excluded" table has a row for every "!=" constraint on the primary
+secondary fields. The second "excluded" table has a row for every "!=" constraint on the primary
 field.
 
 We can then get all of the matching subscriptions with a query like

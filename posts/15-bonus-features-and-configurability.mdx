@@ -12,8 +12,8 @@ some additional features we might want to add.
 ## Opt in queries on simple fields
 
 We saw earlier in the Simple Query and Simple Query Subscription sections the
-processing overhead that comes supporting simple queries on all document fields
-by default. Having fields be automatically queriable is convenient when you are just
+processing overhead that comes with supporting simple queries on all document fields
+by default. Having fields be automatically queryable is convenient when you are just
 starting a project and want to mimimize any required configuration,
 but for a mature project, specifying which fields you want to be able to query
 is not a very high burden. 
@@ -32,23 +32,25 @@ will not write an inefficient query. Once you start allowing inequality
 operators on more than one field, the effectiveness of the B-Tree index for that
 query starts to go down significantly. Since we would be responsible for the database's overall compute cost 
 rather than paying per document read and write, we could allow these potentially less efficient queries.
-The responsibility would be on us to not create a terribly inefficient queries. 
+The responsibility would be on us to not create a terribly inefficient query. 
 
 ## Configurable TTL for client subscriptions
 
-In Firestore if a client has been disconnected for more than about 30 minutes,
+In Firestore, if a client has been disconnected for more than about 30 minutes,
 any subscriptions made by the client expire and will have to be fully reloaded
 when the client reconnects. This is generally a good thing as it prevents you
-from performing upkeep on old subscriptions from disconnected clients that are 
-not going to be checked again, but the TTL that you would want to have on a subscription can vary
-significantly with what the user is subscribing to. For example, you may have a
+from performing upkeep on old subscriptions from disconnected clients that will 
+never be checked again, but the TTL that you would want to have on a subscription can vary
+significantly with what the user is subscribing to. 
+
+For example, you may have a
 subscription to a high touch document that you only want to be active while the
 client is connected and receiving updates. In this case the cost of
 reloading the entire subscription (one document) is low, and the cost of
 maintaining the subscription (a frequent additional write) is high.
 
-A very different situation would be a messaging app (this one is from personal
-experience). For a messaging app, you would ideally like to subscribe to a user's 
+A very different situation would be a messaging app. For a messaging app, 
+you would ideally like to subscribe to a user's 
 messages once and never have to reload the entire message history again. 
 Reloading a users entire message history is expensive, but just
 retrieving the messages they have received since they last connected is
@@ -69,9 +71,9 @@ Being schemaless is one of Firestore's selling points, but there are often times
 where that can slow down development. One way this comes up is in choosing name
 for fields and collections. When you are starting a project that needs to
 iterate rapidly, you likely don't want to spend lots of time carefully choosing
-names for your fields, but you also don't have the full context of what other
+names for your fields, and you also don't have the full context of what other
 fields and collections might exist in the future. This can lead to a situation
-where after a few months of development, naming choices that made sense early on
+where after a few months of development naming choices that made sense early on
 become quite confusing. Because collection and field names are stored explicitly as strings within
 Firestore and referenced explicitly in client code, migrating these names
 without causing interuptions is difficult.
@@ -88,9 +90,9 @@ whenever you want.
 One of the annoying things about working with photos, videos, and other large
 files types is that you can't (or at least shouldn't) store them directly in
 your database. The standard solution is to store the large file in networked
-storage and save the path to the file in your database. This works, but adds
+storage and save the file's path in your database. This works, but adds
 additional hassle when working with these files since you have to first retrieve
-the file information from the database, then separately load the file from
+the file path from the database, then separately load the file from
 storage, and then do the reverse if you are editing the file.
 
 We are already putting a server in front of our database, so there is not much

@@ -19,21 +19,17 @@ PubSub would work as well), a long polling server, and the actual clients.
 The basic workflow is that a client will talk to the database server to
 subscribe to a query. The client will also connect to the long polling server so
 that we can send updates to the client from our backend. Then when a document
-is written to the database that affects one of our clients subscriptions, the
+is written to the database that affects one of our client's subscriptions, the
 database server will send a message through RabbitMQ to the long polling server,
 which will notify the client of the update.
 
 I won't implement this entire server connection here, but we can outline the code
-for this workflow.
-
-First let's look at our long polling endpoint
+for this workflow. First, let's look at our long polling endpoint
 
 ```rust
 const LONG_POLL_TIME_SECONDS: u64 = 20;
 
 pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
-  record_client_ping(sql_client, user_client_id);
-
   // Todo: Subscribe to RabbitMQ
   //		on message queue notification for user_client_id
   //    	close request with message that client should retrieve updates
@@ -114,8 +110,7 @@ pub fn confirm_updates(
 ```
 
 Here we are using the update_id to make sure we do not delete updates for
-documents that have been updated again since the client initially retrieved the
-updates.
+documents that have changed since the client retrieved the updates.
 
 And that's it! We have a system that can allow a client to subscribe to database
 queries and be notified of changes without data loss.
@@ -143,7 +138,7 @@ Even though we may not strictly require horizontal scaling for our use case, the
 easy horizontal scaling provided by long polling will let us easily autoscale
 our client connection servers, reducing cloud costs.
 
-Long polling also provides us with built in retryability. The chain of events 
+Long polling also provides us with built in retries. The chain of events 
 between finishing our database transaction and notifying the client that it
 needs to request updates is not guaranteed to go
 unbroken. However, because our client will be reconnecting to our long polling
@@ -155,3 +150,8 @@ we required higher frequency message passing between our client and server
 (synchronizing state in a multiplayer game for example), websockets would likely
 a better choice. We don't need that rate of message passing though, so the drawbacks
 of websockets outweigh the benefits.
+
+## Next up
+
+Now that we have implemented the presecribed feature set for our database, let's take a look
+at some improvements we could make over Firestore.

@@ -4,7 +4,7 @@ index: 10
 ---
 # Simple Query Subscriptions
 
-Now that we have added support for simple queries, we need to make sure that we
+We have added support for simple queries, and we need to make sure that we
 can update any subscriptions to those queries. We will take the same approach
 that we took to querying our document and collection subscriptions, except now
 we need a table that includes a query's parameters.
@@ -26,7 +26,7 @@ CREATE TABLE simple_query_subscriptions (
 Here we are storing the field name, the operator, and query parameter from the
 where clause of our query in addition to collection and subscription ids.
 
-So for a subscribtion to the query
+So for a subscription to the query
 
 ```typescript
 query("/users", where("name", "=", "Alice"));
@@ -144,8 +144,8 @@ we still have to do **a lot** of checks every time we write a document with even
 a moderate number of fields. Being able to make queries on any field, any time
 we want comes at a cost! While Firestore allows you to select fields to exclude
 from this indexing, there is a limit to how many fields you can exclude (and it
-is kind of a pain). Keep reading to the [Bonus Features and Configurability]()`TODO: Add LINK`
-section to see how we might improve on this.
+is kind of a pain). In [Bonus Features and Configurability]()`TODO: Add LINK`
+we will consider how we might improve on this.
 
 ## Create a new subscription
 
@@ -184,7 +184,7 @@ pub fn subscribe_to_simple_query(
 }
 ```
 
-### Next steps
+## Next up
 
 Our database is starting to look more like Firestore. Next, we'll provide
-support for composite queries.
+support for compound queries.

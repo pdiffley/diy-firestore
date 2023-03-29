@@ -68,7 +68,7 @@ CREATE TYPE field_value AS (
 
 Our field_value type has values that can be set to represent any of the
 datatypes that will be held in our database. We do not have the convenient
-`oneof` feature that protobuf has, but for a given field, we will set the unused
+`oneof` feature that protobuf has, but for a given field, we can set the unused
 types to null. Note that if our value represents a timestamp, both the
 timestamp_nanos and timestamp_seconds field will have a value. We also created a
 `min` and `max` field so that internally, we can have a field_value that is
@@ -83,7 +83,7 @@ CAST(
   AS field_value)
 ```
 
-Here we create a row type holding the integer value 5, then cast it so postgres
+Here we create a row type holding the integer value 5, then cast it so Postgres
 will recognize it as our composite field_value type.
 
 ### Composite Type Ordering
@@ -123,7 +123,7 @@ compsite type, Postgres considers our integer value 2 to be less than our float
 value 1. To query our field values correctly, we need to create custom
 comparison operators that tell Postgres how we want the values to be ordered.
 
-### Next up
+## Next up
 
 We're going to get into some nitty gritty Postgres details to tell Postgres how
 to work with our user defined type, field_value.

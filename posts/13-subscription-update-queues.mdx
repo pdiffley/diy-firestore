@@ -6,19 +6,17 @@ index: 13
 
 So far we have written code that identifies what subscriptions need to be
 updated when a write is made to the database, but we have not specified how we will
-actually send those updates.
+actually deliver those updates.
 
-A naive implemenation, would just notify a client when one 
-of it's subscriptions is updated, and have it re-query the data.
-
-That leads to some n^2 behavior though, re-loading an entire query everytime
+A naive implemenation would just notify a client when one 
+of its subscriptions is updated and have it re-query the data. However, that leads to some n^2 behavior, re-loading an entire query everytime
 a document is added, and also introduces the possibility that a
 message would be dropped resulting in a subscription being out of date until the
 next write that affected it comes through.
 
 When a write affects a subscription, we need a way to reliably send the subscriber
 only the changes that have been made without the risk of data being lost. To do this, we will create a
-queue (I use the term loosely) in our postgres database that will hold all pending updates that need to be
+queue (I use the term loosely) in our Postgres database that will hold all pending updates that need to be
 sent to a client. When a client's subscription is affected by a write, the update will be written to the queue.
 The client can then retrieve all of the changes for its subscriptions from the update queue.
 
@@ -118,14 +116,14 @@ fn create_document(
 }
 ```
 
-Because our update queues are just another table in our postgres database we can add documents
+Because our update queues are just another table in our Postgres database we can add documents
 to the queues in the same transaction that all other associated
-modifications are made it ensuring that the update queue always represents the 
+modifications are made in, ensuring that the update queue always represents the 
 lastest state of the database. When we deliver the update to the subscribing 
 client, we just need to confirm that the client has received the update before 
 removing items from the queue.
 
-### Next up
+## Next up
 
 We now have a table holding update queues for all of our subscriptions, but we
 still need to provide a way for the clients to reliably retrieve those updates.

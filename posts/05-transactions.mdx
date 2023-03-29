@@ -4,10 +4,9 @@ index: 5
 ---
 # Transactions
 
-Firestore allows us to perform optimistic client side transactions, ensuring
-that a set of writes only go through as a block or not at all.
+Firestore allows users to perform optimistic client side transactions and so will we.
 
-This isn't too difficult to support. The first thing to notice is that our
+This is not too difficult to support. The first thing to notice is that our
 document proto includes the `update_id` for a document. This mean that when our
 client reads a document it also receives the update id for that document. To
 allow client side transactions we just need to provide an endpoint that lets a
