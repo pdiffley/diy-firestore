@@ -46,6 +46,7 @@
 
 .article :global(code:not(.ch-code-scroll-parent)) {
   font-family: "SF Mono Medium", "Fira Code", "Cousine", "Consolas", monospace;
+  font-size: 0.85em;
   /* background-color: #ededf5; */
   background-color: #f0f0fc;
 

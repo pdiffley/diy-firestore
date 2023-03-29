@@ -6,7 +6,7 @@ index: 3
 
 Before we implement the more complex features of our database we need to set up
 an underlying datastore. We are going to put all of our data into a SQL
-database, specifically Postgres version 15. It is a little unintuitive that we
+database, specifically Postgres version 15. It is a little counterintuitive that we
 are using SQL to support our schemaless database, but we will see over the course
 of the series how SQL's gold standard ACID transactions make it easy to implement 
 the broad feature set we need to support.
@@ -27,8 +27,8 @@ CREATE TABLE documents (
 );
 ```
 
-Each row in the `documents` table holds the unique identifiers for a document,
-`collection_parent_path`, `collection_id`, and `document_id`, as well as a blob
+Each row in the `documents` table holds the unique identifiers for a document &mdash;
+`collection_parent_path`, `collection_id`, and `document_id` &mdash; as well as a blob
 holding the document data itself. We also included a column `update_id` which we will
 change to a new unique value anytime a document is updated. We will make use of this later.
 
@@ -43,8 +43,9 @@ ON documents(collection_id, collection_parent_path, document_id, update_id);
 ## Binary document representation
 
 To store our documents in the document_data column, we need a way to get a
-binary representation of our document. Protobuf provides a convenient way to do
-this. We will define a `Document` proto to have a document id and a map of fields.
+binary representation of our document. [Google's Protocol Buffers](https://protobuf.dev/)
+("protobuf") provide a convenient way to do this. We will define a `Document`
+protobuf message to have a document id and a map of fields.
 
 ```proto
 syntax = "proto3";
@@ -63,7 +64,7 @@ message Document {
 }
 ```
 
-Protobuf messages have a schema though. To allow for multiple data types to be
+Again, like Postgres, Protobuf messages have a schema. To allow for multiple data types to be
 stored in our document, we define a type `FieldValue` that can hold all of
 the possible values our documents support. Protobuf's `oneof` feature
 conveniently allows us to indicate that any given FieldValue will only contain
@@ -111,9 +112,9 @@ cases, but the idea that you might have to fully rearchitect your system at a
 future date because your database can't scale to your needs can be troubling
 when you are starting a project (even if you know you are optimizing
 prematurely). That said, if we needed horizontal scalability, we could upgrade to a
-horizontally scaleable SQL database like Spanner.
+horizontally scaleable SQL database like [Spanner](https://cloud.google.com/spanner/).
 
-We also chose to represent documents in our database as serialized Protobufs.
+We also chose to represent documents in our database as serialized protobuf messages.
 Protobuf is a widely used standard with cross language support and good
 performance, so it is convenient for our use case, but there are other options
 we could have chosen.
@@ -130,7 +131,7 @@ numbers back to the appropriate type in our client applications. Keeping track
 of the type information manually would be a pain and is just not worth the
 effort.
 
-Postgres' support for querying JSON is not very helpful for our use cases
+Postgres's support for querying JSON is not very helpful for our use cases
 either. To query a JSONB column efficiently, you need to create an index
 specifying which JSON fields you want to query in advance. We need to support
 queries on any field in any document at any time, so that won't work for us.

@@ -34,12 +34,12 @@ Just had to get this out of the way. I am mostly just writing this for fun.
 Firestore is a pretty cool system to investigate, so I hope you enjoy reading
 about how I go about implementing it!
 
-### You're not on gcp
+### You're not on Google Cloud Platform
 
 Firestore is a GCP product and does not have a direct equivalent in other cloud
 providers. If all of your apps and services are based in AWS for example, you
 might not be able to readily use technologies in GCP. Or maybe your division
-built multiple frontend apps around Firebase then your company made the
+built multiple frontend apps around Firebase, then your company made the
 unilateral decision to move to AWS, and now you are stuck figuring out what to
 do.
 
@@ -47,15 +47,15 @@ do.
 
 Firestore is a generic product and does not provide many options for configuration. 
 
-All database resources are managed for you and you pay per read and write. Only paying for your individual 
-reads and writes is convenient when you are starting a project, but it limits the amount of
+All database resources are managed for you and you pay per read and write. When you are starting a project,
+it can be convenient to only pay for your individual reads and writes, but it limits the amount of
 configurability you can have. A cost model where you pay for the underlying 
 infrastructure supporting your database rather than paying per read and write removes these limitations.
 
 At the end of this series, I will show some examples
 of how we could customize our database to suit our needs in a way that Firestore might not.
 
-### You're cloud costs are too high
+### Your cloud costs are too high
 
 Firestore is designed to be highly scalable and have a low barrier to entry, but
 it is also quite expensive. This likely doesn't matter when you are just

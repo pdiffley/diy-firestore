@@ -11,7 +11,7 @@ give a lightning round description of the features we will be implementing, and
 specify some **key terms** that I will be using over the course of this
 series. If you are already well acquainted with Firestore's features feel free
 to skim or skip to the summary at the bottom. Alternatively, if you have no idea
-how Firestore works at all, it could be helpful to read the [Firestore's docs](https://firebase.google.com/docs/firestore)
+how Firestore works at all, it could be helpful to read the [Firestore docs](https://firebase.google.com/docs/firestore)
 which explain Firestore's features in more detail.
 
 ## Data Organization
@@ -20,10 +20,10 @@ which explain Firestore's features in more detail.
 
 Our data model is going to be nearly identical to Firestore's. We will be
 storing **documents** of key-value pairs inside **collections**. Every
-document will have a string identifier, **document_id** and will be the child of a
+document will have a string identifier, **document_id**, and will be the child of a
 collection with its own string identifier, **collection_id**. Consider the
 chat room example from the
-[Firestore documentation](https://firebase.google.com/docs/firestore/data-model#hierarchical-data).
+[Firestore documentation](https://firebase.google.com/docs/firestore/data-model#hierarchical-data):
 
 <div className="collection">
   <div className="document-title"> <Image src="/diy-firestore/images/collection-dark.png" alt="drawing" height="30" width="30" /> <div className="document-name"> rooms </div> </div>
@@ -121,8 +121,8 @@ and the full unique identifier for `message1` in `roomA` is
 
 We will break these unique identifiers into three components. The first two,
 **document_id** and **collection_id**, we have already seen. The third is
-**collection_parent_path** and encompasses everything in a documents unique
-path prior to it's collection. For example, the collection_parent_path for the
+**collection_parent_path** and encompasses everything in a document's unique
+path prior to its collection. For example, the collection_parent_path for the
 messages collection above is `"/rooms/roomA"`. The collection_parent_path for top
 level collections (eg. `rooms`) is just an empty string.
 
@@ -161,11 +161,11 @@ we need a consistent way to compare field values with different types. For this
 purpose the different types will be ordered based on their position in the list
 above (ie. a null type is always less than a boolean type which is always less
 than an integer and so on). The only exception to this is that integers and floats
-will be ordered based on their numberic value (eg. `1 < 2.5 < 3 < 3.5`).
+will be ordered based on their numberic value (e.g. `1 < 2.5 < 3 < 3.5`).
 
 ## Queries
 
-Following [Firestore's terminolgy](https://firebase.google.com/docs/firestore/query-data/queries), 
+Following [Firestore's terminology](https://firebase.google.com/docs/firestore/query-data/queries), 
 we will classify queries as either **simple** or **compound** and will allow queries on
 **collections** as well as **collection groups**. A collection group is any group of collections
 that have the same collection_id.
@@ -181,8 +181,8 @@ query("rooms/roomA/messages", where("from", "=", "alex"));
 ```
 
 We will support simple queries on all document fields for the operators `<`,
-`<=`, `>`, `>=`, `==`, and `!=` without advanced notice that the query will be
-made (ie. without the need to make a new index for the query).
+`<=`, `>`, `>=`, `==`, and `!=` "out of the box", without requiring that users
+specify the need for them in advance.
 
 ### Collection Groups
 
@@ -231,9 +231,9 @@ would not be allowed. But why would you want to exclude Alex anyway?
 ### Composite Field Groups
 
 Before we can make a compound query on a set of fields, we will require the user
-to specifiy a **composite field group**, this will allow us to make the tables 
+to specifiy a **composite field group**. This will allow us to make the tables 
 and indexes required to support the query. For the above query, we would specify the 
-composite fields
+composite fields:
 
 ```typescript
 {
@@ -242,11 +242,11 @@ composite fields
   fields: ["from", "messageCount"]
 }
 ```
-Here we indicate that we are specifying we want to run queries on the 
+Here we are specifying that we want to run queries on the 
 collection `/rooms/roomA/messages`, and that we want include
 the fields "from" and "messageCount" in a single query.
 
-This only lets us run queries on one `messages` collection though (the one that 
+This only lets us run queries on one `messages` collection, though (the one that 
 is a child to `roomA`). Most likely, we would want to run queries on all `messages`
 collections. To do that we would specify the composite group below.
 
@@ -257,7 +257,7 @@ collections. To do that we would specify the composite group below.
   fields: ["from", "messageCount"]
 }
 ```
-Here we indicate that we are specifying the group of composite fields for all
+Here we are specifying that the group of composite fields for all
 individual collections with collection_id `messages`. We can the run queries over
 that collection group.
 
@@ -275,17 +275,14 @@ made in real time. We could create the subscription below to print messages sent
 from Alex to roomA.
 
 ```typescript
-let q = query(
+const q = query(
   "rooms/roomA/messages",
   where("from", "==", "alex"),
   where("messageCount", "<", 500)
 );
 
-let unsubscribeHandler = onSnapshot(q, (querySnapshot) => {
-  const messages = [];
-  querySnapshot.forEach((doc) => {
-    messages.push(doc.data().message);
-  });
+const unsubscribeHandler = onSnapshot(q, (querySnapshot) => {
+  const messages = querySnapshot.map((doc) => doc.data().message);
   console.log(messages);
 });
 ```
@@ -308,9 +305,11 @@ write the transaction
 
 ```typescript
 await runTransaction(db, async (transaction) => {
-  let counterDoc = await transaction.get("/counter_collection/counter");
-  let currentCount = counterDoc.data().count;
-  transaction.update("/counter_collection/counter", { count: currentCount + 1 });
+  const counterDoc = await transaction.get("/counter_collection/counter");
+  const currentCount = counterDoc.data().count;
+  transaction.update("/counter_collection/counter", {
+    count: currentCount + 1
+  });
 });
 ```
 
@@ -329,18 +328,17 @@ but there is
 [some contention](https://github.com/googleapis/nodejs-firestore/issues/785)
 (sorry) over how effective their pessimistic concurrency controls are.
 Firestore's pessimistic concurrency ensures that when there is contention on a
-document at least one transaction attempting to modify the document can
-complete, but all other transactions attempting to modify the document will have
-to retry and will ultimately fail if the 5 retry limit is reached. This is
-instead of queuing the contested transactions and completing them in the order
-they were made. Personally, when I have used Firestore's server side transactions in the
+document, at least one transaction attempting to modify the document can
+complete. All other transactions attempting to modify the document will have
+to retry, and they will ultimately fail if the 5-retry limit is reached.
+Personally, when I have used Firestore's server side transactions in the
 past, they did not live up to my expectations for how a pessimistic transaction
 should behave. We are going to leave pessimistic transactions out of this series' implementation.
 
 ## Client Libraries
 
 Firestore's client libraries play an important role in making the database useable,
-managing subscriptions and transactions for example. However, in this series, I will 
+for example by managing subscriptions and transactions. However, in this series, I will 
 only be demonstrating the server side code needed to support the database.
 
 We are also going to hopscotch right over security rules. For this series, we will assume 
