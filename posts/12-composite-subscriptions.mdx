@@ -90,12 +90,26 @@ The first "included" table has one row for every subscription that specifies the
 secondary fields. The second "excluded" table has a row for every "!=" constraint on the primary
 field.
 
-We can then get all of the matching subscriptions with a query like
+We can then get all of the matching subscriptions with a query like.
+```sql
+-- included values
+(SELECT subscription_id
+FROM composite_included_table_d8b8c614b73546daa1d85531dc412ef6
+WHERE min_age >= 25 AND max_age <= 25 AND user_name = "John" 
+AND city = "Memphis" AND zipcode = "38125")
 
-`TODO: ADD QUERY CODE`
+EXCEPT
+
+-- excluded values
+(SELECT distinct subscription_id
+FROM composite_excluded_table_d8b8c614b73546daa1d85531dc412ef6
+WHERE excluded_age = 25)
 ```
-select distinct subscription_id from {} where excluded_{} = $1
-```
+Here we get all the subscripition ids for queries that match the document's main parameters
+(note that I am omitting the syntax for specifying the documents parameters as field_values). 
+Then we will select the subscription ids of queries that exclude the document's age, and remove
+them from the result.
+
 
 The actual code for creating that query and getting the matching subscriptions
 gets pretty knarly, but we can reduce that complexity as well with the power of 
