@@ -7,12 +7,17 @@ import "@code-hike/mdx/dist/index.css";
 
 import { Post } from "../model/Post";
 import styles from "../styles/index.module.css";
+import { Helmet } from "react-helmet";
 
 const { main, blogSummary, header } = styles;
 
 export default function Index({ postsData }: { postsData: Array<Post> }) {
   return (
     <main className={main}>
+      {/* <Helmet>
+        <meta name="robots" content="noindex" />
+      </Helmet> */}
+
       <header className={header}>
         <h1>DIY Firestore</h1>
 

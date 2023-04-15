@@ -32,6 +32,7 @@ export default function PostPage({
     <>
       <Head>
         <title>DIY Firestore: {title}</title>
+        <meta name="robots" content="noindex" />
       </Head>
       <div className={content}>
         <nav className={nav}>
