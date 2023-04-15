@@ -14,9 +14,9 @@ const { main, blogSummary, header } = styles;
 export default function Index({ postsData }: { postsData: Array<Post> }) {
   return (
     <main className={main}>
-      {/* <Helmet>
+      <Helmet>
         <meta name="robots" content="noindex" />
-      </Helmet> */}
+      </Helmet>
 
       <header className={header}>
         <h1>DIY Firestore</h1>
