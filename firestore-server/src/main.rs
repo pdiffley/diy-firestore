@@ -65,7 +65,7 @@ fn mainish() {
   let connection_string = &format!("host=localhost user={} dbname=diy_firestore", user);
   let mut client: Client = Client::connect(connection_string, NoTls).unwrap();
   let mut transaction = client.build_transaction()
-    .isolation_level(IsolationLevel::RepeatableRead)
+    .isolation_level(IsolationLevel::Serializable)
     .start().unwrap();
 
 
@@ -395,7 +395,7 @@ fn basic_subscription() {
   let connection_string = &format!("host=localhost user={} dbname=diy_firestore", user);
   let mut client: Client = Client::connect(connection_string, NoTls).unwrap();
   let mut transaction = client.build_transaction()
-    .isolation_level(IsolationLevel::RepeatableRead)
+    .isolation_level(IsolationLevel::Serializable)
     .start().unwrap();
 
   let user_doc_id_1 = DocumentId {

@@ -94,7 +94,8 @@ message Timestamp {
 ```
 
 With this protobuf representation, we can serialize our documents to a binary
-format and store them in our document_data column. 
+format and store them in our document_data column. In our Rust code, these protos
+will be represented by a generated `Document` struct.
 
 ## Review
 

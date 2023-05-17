@@ -34,14 +34,23 @@ pub fn listen_for_update(sql_client: &mut Client, user_client_id: &str) {
   //		on message queue notification for user_client_id
   //    	close request with message that client should retrieve updates
 
-  if client_is_out_of_date(sql_client, user_client_id) {
-    // Todo: close request with message that client should retrieve updates
-  }
-
   sleep(Duration::new(LONG_POLL_TIME_SECONDS, 0));
   // Todo: close request with message that client is up to date
 }
 
+```
+
+This function just subscribes to RabbitMQ messages tagged for the client id
+and then waits. If there there is a message from RabbitMQ, the request is
+closed, notifying the client that it needs to retrieve updates for its
+subscriptions. If there are no updates in `LONG_POLL_TIME_SECONDS`, the request
+closes with a message that the client is up to date. At this point, the client
+will re-open the connection to listen for further updates.
+
+We will also have an endpoint that checks if a client has any updates that have not been retrieved. The client 
+will hit this endpoint after starting a long polling connection, in case any RabbitMQ messages were dropped.
+
+```rust
 pub fn client_is_out_of_date(
   sql_client: &mut Client, 
   user_client_id: &str) -> bool {
@@ -54,15 +63,6 @@ pub fn client_is_out_of_date(
     .unwrap().len() == 0;
 }
 ```
-
-This function first subscribes to RabbitMQ messages tagged for the client id,
-then checks if any updates have been pushed to its queue since it last checked
-in with the long polling server, and then waits. If there are existing updates
-for the client, or if there there is a message from RabbitMQ, the request is
-closed, notifying the client that it needs to retrieve updates for its
-subscriptions. If there are no updates in `LONG_POLL_TIME_SECONDS`, the request
-closes with a message that the client is up to date. At this point, the client
-will re-open the connection to listen for further updates.
 
 If the client is notified that it has pending updates, it will request those
 updates from the database server
@@ -137,13 +137,6 @@ number of messages being sent and received by each server.
 Even though we may not strictly require horizontal scaling for our use case, the
 easy horizontal scaling provided by long polling will let us easily autoscale
 our client connection servers, reducing cloud costs.
-
-Long polling also provides us with built in retries. The chain of events 
-between finishing our database transaction and notifying the client that it
-needs to request updates is not guaranteed to go
-unbroken. However, because our client will be reconnecting to our long polling
-server every 30 seconds or so, a rare dropped message will only result in a short
-delay before the client identifies that it needs to request updates.
 
 Websockets are preferable to long polling in some cases. If
 we required higher frequency message passing between our client and server

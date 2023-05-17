@@ -316,26 +316,9 @@ await runTransaction(db, async (transaction) => {
 
 This code will read the counter document, update it with the new value and rollback
 if there was contention. Like Firestore, we will require that all reads made in a 
-transaction be made before any writes.
+transaction be made before any writes. 
 
-## Pessimistic Transactions
-
-Optimistic transactions fail automatically if there is contention around a
-document write. This makes them ill suited for cases where multiple clients are
-likely to be writing to the same document at the same time. Firestore advertises
-that it has server side transactions that run with
-[pessimistic concurrency](https://firebase.google.com/docs/firestore/transaction-data-contention#data_contention_in_the_server_client_libraries),
-but there is
-[some contention](https://github.com/googleapis/nodejs-firestore/issues/785)
-(sorry) over how effective their pessimistic concurrency controls are.
-Firestore's pessimistic concurrency ensures that when there is contention on a
-document at least one transaction attempting to modify the document can
-complete, but all other transactions attempting to modify the document will have
-to retry and will ultimately fail if the 5 retry limit is reached. This is
-instead of queuing the contested transactions and completing them in the order
-they were made. Personally, when I have used Firestore's server side transactions in the
-past, they did not live up to my expectations for how a pessimistic transaction
-should behave. We are going to leave pessimistic transactions out of this series' implementation.
+Firestore also provides support for server side pessimistic transactions, but we will leave these out for now.
 
 ## Client Libraries
 

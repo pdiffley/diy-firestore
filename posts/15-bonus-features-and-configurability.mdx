@@ -95,7 +95,7 @@ additional hassle when working with these files since you have to first retrieve
 the file path from the database, then separately load the file from
 storage, and then do the reverse if you are editing the file.
 
-We are already putting a server in front of our database, so there is not much
+We are already putting a server (and in practice some client libraries) in front of our database, so there is not much
 stopping us from providing a extra "large_blob" data type that will
 transparently do this file management for us. Behind the scenes we would manage
 writing the blob in file storage, and writing the file id in the database. From
