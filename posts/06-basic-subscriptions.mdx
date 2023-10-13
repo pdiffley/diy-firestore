@@ -153,6 +153,12 @@ Later in the series, we will show how we will actually deliver updates to these
 subscriptions. For now, we know that whenever we write to the
 database we can efficiently get the list of subscriptions that need to receive an update.
 
+It is worth noting here that we are starting to put additional work into our write transactions (and we are just getting started). 
+This is fine for this blog post, but in practice, putting a lot of code into our write transactions could make writing
+to the database unacceptably slow. Instead, we would likely move our subscription matching tasks to a separate work queue to allow
+writes to go through quickly.
+
+
 ## Subscribing to a query
 
 To support subscribing to a query in the first place, we will create another table `client_subscriptions`,

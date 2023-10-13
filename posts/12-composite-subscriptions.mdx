@@ -110,6 +110,9 @@ Here we get all the subscripition ids for queries that match the document's main
 Then we will select the subscription ids of queries that exclude the document's age, and remove
 them from the result.
 
+It is worth noting that these queries are only guaranteed to be efficient when one inequality operator is used on
+the primary field (eg. we only specify a `min_age` and don't specify a `max_age`). Queries with two inequality operators
+can still be efficient in cases where the primary constraints are on a field with low cardinality.
 
 The actual code for creating that query and getting the matching subscriptions
 gets pretty knarly, but we can reduce that complexity as well with the power of 
